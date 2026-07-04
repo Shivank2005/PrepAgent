@@ -1,0 +1,1 @@
+const fs=require('fs');let c=fs.readFileSync('src/components/ChatInterface.tsx','utf-8');c=c.replace(/type: "spring"/g, 'type: "spring" as any');fs.writeFileSync('src/components/ChatInterface.tsx',c);
