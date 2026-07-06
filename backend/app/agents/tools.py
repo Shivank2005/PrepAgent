@@ -92,7 +92,7 @@ async def generate_mock_questions_tool(
 ) -> List[dict]:
     past_questions = []
     for doc in rag_docs:
-        content = doc.get("content", doc.get("experience", doc.get("page_content", "")))
+        content = doc.get("text", doc.get("content", doc.get("experience", doc.get("page_content", ""))))
         if content:
             past_questions.append(str(content))
     past_questions_context = "\n---\n".join(past_questions[:5])

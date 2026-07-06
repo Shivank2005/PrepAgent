@@ -8,20 +8,28 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - API_INTERNAL_URL=http://backend:9001
+      - NEXT_PUBLIC_API_URL=http://localhost:9001/api
     depends_on:
       - backend
     restart: unless-stopped
+    networks:
+      - prepagent_net
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=sqlite:///./prepmind.db
-      - GROQ_API_KEY=${GROQ_API_KEY}
+      - "9001:9001"
+    env_file:
+      - ./backend/.env
     volumes:
       - ./backend/data:/app/data
     restart: unless-stopped
+    networks:
+      - prepagent_net
+
+networks:
+  prepagent_net:
+    driver: bridge
