@@ -18,3 +18,6 @@ langchain-groq
 passlib[bcrypt]
 python-jose[cryptography]
 python-multipart
+google-auth
+requests
+langchain-pinecone

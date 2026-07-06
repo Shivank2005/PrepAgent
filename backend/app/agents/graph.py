@@ -34,6 +34,7 @@ class AgentState(TypedDict):
     session_id: str
     step: str
     evaluation_feedback: Optional[dict]
+    interviewer_persona: Optional[str]
 
 
 
@@ -177,6 +178,7 @@ async def eval_engine_node(state: AgentState) -> AgentState:
         answer=last_human,
         company=state["company"],
         history=history,
+        interviewer_persona=state.get("interviewer_persona", "Standard Recruiter"),
     )
 
     # Update readiness score based on answer quality

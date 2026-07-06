@@ -1,15 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, fetchAnalyticsSummary, fetchCurrentStreak } from "@/lib/api";
 import { getActiveSessionId, getAuthToken } from "@/lib/store";
-import { Loader2, BarChart3, TrendingUp, Award, Target } from "lucide-react";
+import { Loader2, BarChart3, TrendingUp, Award, Target, Activity, Clock3, Users, Flame } from "lucide-react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { format, parseISO } from "date-fns";
+
+const COLORS = ["#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#c084fc"];
 
 export default function AnalyticsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
+  const [streak, setStreak] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!getAuthToken()) {
@@ -21,22 +41,41 @@ export default function AnalyticsPage() {
       router.push("/setup");
       return;
     }
-    fetchSession(sessionId);
+    fetchData(sessionId);
   }, [router]);
 
-  const fetchSession = async (sessionId: string) => {
+  const fetchData = async (sessionId: string) => {
     try {
       setLoading(true);
-      const res = await api.get(`/chat/session/${sessionId}`);
-      setSession(res.data);
-    } catch (err) {
+      setError(null);
+      const [sessionRes, summaryRes, streakRes] = await Promise.all([
+        api.get(`/chat/session/${sessionId}`),
+        fetchAnalyticsSummary(),
+        fetchCurrentStreak(),
+      ]);
+      setSession(sessionRes.data);
+      setSummary(summaryRes);
+      setStreak(streakRes);
+    } catch (err: any) {
       console.error(err);
+      setError(err?.message || "Unable to load analytics right now.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading || !session) {
+  const readinessTrend = useMemo(() => {
+    return (summary?.recent_trend || []).map((item: any, index: number) => ({
+      name: item.date ? format(parseISO(item.date), "MMM d") : `S${index + 1}`,
+      score: Number(item.score || 0),
+      company: item.company || "Session",
+    }));
+  }, [summary]);
+
+  const weakAreas = useMemo(() => summary?.weak_area_counts || [], [summary]);
+  const companyCounts = useMemo(() => summary?.company_counts || [], [summary]);
+
+  if (loading || !session || !summary) {
     return (
       <div className="flex items-center justify-center h-full w-full bg-[#0a0a0f]">
         <Loader2 className="animate-spin text-accent" size={32} />
@@ -44,33 +83,12 @@ export default function AnalyticsPage() {
     );
   }
 
-  // Derive mock data for visual representation from actual readiness score
-  const baseScore = session.readiness_score || 50;
-  
-  const metrics = [
-    { label: "Technical Competence", score: Math.min(100, baseScore + 5) },
-    { label: "Communication", score: Math.min(100, baseScore + 12) },
-    { label: "Problem Solving", score: Math.min(100, baseScore - 5) },
-    { label: "System Design", score: Math.min(100, baseScore - 15) },
-    { label: "Behavioral", score: Math.min(100, baseScore + 20) },
-  ];
-
-  // Radar chart calculations
-  const size = 300;
-  const center = size / 2;
-  const radius = (size / 2) - 40;
-  const points = metrics.map((m, i) => {
-    const angle = (Math.PI * 2 * i) / metrics.length - Math.PI / 2;
-    const value = (m.score / 100) * radius;
-    return {
-      x: center + value * Math.cos(angle),
-      y: center + value * Math.sin(angle),
-      labelX: center + (radius + 25) * Math.cos(angle),
-      labelY: center + (radius + 25) * Math.sin(angle),
-    };
-  });
-  
-  const pathData = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(" ") + " Z";
+  const latestReadiness = Number(summary.latest_readiness || session.readiness_score || 0);
+  const averageReadiness = Number(summary.average_readiness || 0);
+  const change = Number(summary.readiness_change || 0);
+  const completionRate = Number(summary.completion_rate || 0);
+  const averageTime = Number(summary.average_time_taken || 0);
+  const topCompany = summary.top_company || session.company || "Unknown";
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-[#0a0a0f] custom-scrollbar">
@@ -80,113 +98,186 @@ export default function AnalyticsPage() {
             <BarChart3 className="text-accent" size={24} />
             Performance Analytics
           </h1>
-          <p className="text-[#a5a0c4] text-sm mt-1">Deep dive into your interview readiness metrics.</p>
+          <p className="text-[#a5a0c4] text-sm mt-1">
+            Real session history from your placement prep workflow.
+          </p>
         </div>
       </header>
 
-      <main className="flex-1 p-8 max-w-[1200px] mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        {/* Main Score Card */}
-        <div className="bg-[#12121a] border border-[#2d2c41] rounded-2xl p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-[100px] rounded-full pointer-events-none" />
-          <Award className="text-accent mb-4" size={48} />
-          <h2 className="text-lg font-medium text-[#a5a0c4] mb-2 uppercase tracking-widest">Overall Readiness</h2>
-          <div className="text-7xl font-bold text-white tracking-tighter mb-4">
-            {baseScore.toFixed(0)}<span className="text-3xl text-[#5c5875]">%</span>
+      <main className="flex-1 p-8 max-w-[1280px] mx-auto w-full space-y-8">
+        {error && (
+          <div className="border border-[#ef4444]/30 bg-[#ef4444]/10 rounded-xl p-4 text-sm text-[#fca5a5]">
+            {error}
           </div>
-          <div className="bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
-            <TrendingUp size={16} /> Top 24% of candidates
-          </div>
-        </div>
+        )}
 
-        {/* Radar Chart */}
-        <div className="bg-[#12121a] border border-[#2d2c41] rounded-2xl p-8 flex flex-col items-center justify-center relative">
-          <h3 className="absolute top-8 left-8 font-bold text-white text-lg">Skill Breakdown</h3>
-          
-          <div className="relative mt-12 w-[300px] h-[300px]">
-            <svg width={size} height={size} className="overflow-visible">
-              {/* Background webs */}
-              {[0.25, 0.5, 0.75, 1].map((scale, idx) => (
-                <polygon
-                  key={idx}
-                  points={metrics.map((_, i) => {
-                    const angle = (Math.PI * 2 * i) / metrics.length - Math.PI / 2;
-                    return `${center + radius * scale * Math.cos(angle)},${center + radius * scale * Math.sin(angle)}`;
-                  }).join(" ")}
-                  fill="none"
-                  stroke="#2d2c41"
-                  strokeWidth="1"
-                />
-              ))}
-              
-              {/* Axis lines */}
-              {metrics.map((_, i) => {
-                const angle = (Math.PI * 2 * i) / metrics.length - Math.PI / 2;
-                return (
-                  <line
-                    key={i}
-                    x1={center}
-                    y1={center}
-                    x2={center + radius * Math.cos(angle)}
-                    y2={center + radius * Math.sin(angle)}
-                    stroke="#2d2c41"
-                    strokeWidth="1"
-                  />
-                );
-              })}
+        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+          <MetricCard icon={Award} label="Latest readiness" value={`${latestReadiness.toFixed(0)}%`} sublabel={`${session.company} · ${session.role}`} />
+          <MetricCard icon={TrendingUp} label="Average readiness" value={`${averageReadiness.toFixed(1)}%`} sublabel={change >= 0 ? `+${change.toFixed(1)} vs previous` : `${change.toFixed(1)} vs previous`} />
+          <MetricCard icon={Activity} label="Total sessions" value={String(summary.total_sessions || 0)} sublabel={`${summary.completed_sessions || 0} completed`} />
+          <MetricCard icon={Target} label="Completion rate" value={`${completionRate.toFixed(1)}%`} sublabel="Completed roadmap tasks" />
+          <MetricCard icon={Clock3} label="Avg. time" value={formatTime(averageTime)} sublabel="Across saved sessions" />
+          <MetricCard icon={Flame} label="Current streak" value={`${streak?.current_streak ?? 0} days`} sublabel={streak?.current_streak ?? 0 > 0 ? `Best: ${streak?.best_streak ?? 0} days` : "Keep studying!"} />
+        </section>
 
-              {/* Data polygon */}
-              <path
-                d={pathData}
-                fill="rgba(6, 182, 212, 0.2)"
-                stroke="#06b6d4"
-                strokeWidth="2"
-                className="drop-shadow-[0_0_10px_rgba(6,182,212,0.4)]"
-              />
-
-              {/* Data points */}
-              {points.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r="4" fill="#06b6d4" />
-              ))}
-            </svg>
-            
-            {/* Labels */}
-            {points.map((p, i) => (
-              <div
-                key={i}
-                className="absolute text-xs font-bold text-[#a5a0c4] transform -translate-x-1/2 -translate-y-1/2 text-center whitespace-nowrap"
-                style={{ left: p.labelX, top: p.labelY }}
-              >
-                {metrics[i].label}
-                <div className="text-white">{metrics[i].score.toFixed(0)}%</div>
+        <section className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="xl:col-span-2 bg-[#12121a] border border-[#2d2c41] rounded-2xl p-6">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-white tracking-tight">Readiness trend</h2>
+                <p className="text-sm text-[#a5a0c4] mt-1">How your readiness has changed across recent sessions.</p>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Actionable Insights */}
-        <div className="lg:col-span-2 bg-[#12121a] border border-[#2d2c41] rounded-2xl p-8">
-          <div className="flex items-center gap-3 mb-6">
-             <Target className="text-[#fbbf24]" size={24} />
-             <h2 className="text-xl font-bold text-white tracking-tight">Actionable Insights</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-[#0a0a0f] border border-[#2d2c41] rounded-xl p-5">
-              <h4 className="text-sm font-bold text-[#4fd9b3] uppercase tracking-wider mb-2">Strengths to Leverage</h4>
-              <p className="text-sm text-[#a5a0c4] leading-relaxed">
-                Your <strong className="text-white">Behavioral</strong> and <strong className="text-white">Communication</strong> scores are exceptionally high. Make sure to lean into these during the interview by telling compelling stories and clearly explaining your thought process.
-              </p>
+              <div className="text-right text-sm text-[#a5a0c4]">
+                <div className="font-semibold text-white">Top tracked company</div>
+                <div>{topCompany}</div>
+              </div>
             </div>
-            <div className="bg-[#0a0a0f] border border-[#2d2c41] rounded-xl p-5">
-              <h4 className="text-sm font-bold text-[#ff6b6b] uppercase tracking-wider mb-2">Critical Bottlenecks</h4>
-              <p className="text-sm text-[#a5a0c4] leading-relaxed">
-                Your <strong className="text-white">System Design</strong> capability is currently lagging at {metrics[3].score.toFixed(0)}%. Since you are applying for <strong className="text-white">{session.role}</strong> at <strong className="text-white">{session.company}</strong>, this will be heavily scrutinized. Prioritize the System Design modules in your Study Plan.
-              </p>
+            <div className="h-[320px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={readinessTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2d2c41" />
+                  <XAxis dataKey="name" tick={{ fill: "#a5a0c4", fontSize: 12 }} axisLine={{ stroke: "#2d2c41" }} tickLine={false} />
+                  <YAxis tick={{ fill: "#a5a0c4", fontSize: 12 }} axisLine={{ stroke: "#2d2c41" }} tickLine={false} domain={[0, 100]} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#12121a", border: "1px solid #2d2c41", borderRadius: 12, color: "#fff" }}
+                    labelStyle={{ color: "#fff" }}
+                    formatter={(value: any) => [`${Number(value).toFixed(1)}%`, "Readiness"]}
+                  />
+                  <Line type="monotone" dataKey="score" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: "#8b5cf6" }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
-        </div>
 
+          <div className="bg-[#12121a] border border-[#2d2c41] rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Users className="text-[#06b6d4]" size={20} />
+              <h2 className="text-xl font-bold text-white tracking-tight">Company mix</h2>
+            </div>
+            <div className="h-[320px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={companyCounts} dataKey="count" nameKey="company" cx="50%" cy="50%" outerRadius={110} label={(entry: any) => `${entry.company}`.slice(0, 10)}>
+                    {companyCounts.map((_: any, index: number) => (
+                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#12121a", border: "1px solid #2d2c41", borderRadius: 12, color: "#fff" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          <div className="bg-[#12121a] border border-[#2d2c41] rounded-2xl p-6">
+            <h2 className="text-xl font-bold text-white tracking-tight mb-2">Most frequent weak areas</h2>
+            <p className="text-sm text-[#a5a0c4] mb-6">These are the topics that repeatedly appear in your generated gap analysis.</p>
+            {weakAreas.length > 0 ? (
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weakAreas} layout="vertical" margin={{ left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2d2c41" />
+                    <XAxis type="number" tick={{ fill: "#a5a0c4", fontSize: 12 }} axisLine={{ stroke: "#2d2c41" }} tickLine={false} />
+                    <YAxis dataKey="topic" type="category" tick={{ fill: "#a5a0c4", fontSize: 12 }} width={140} axisLine={{ stroke: "#2d2c41" }} tickLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: "#12121a", border: "1px solid #2d2c41", borderRadius: 12, color: "#fff" }} />
+                    <Bar dataKey="count" fill="#06b6d4" radius={[0, 8, 8, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="text-[#a5a0c4] text-sm rounded-xl border border-[#2d2c41] bg-[#0a0a0f] p-6">
+                No weak areas were recorded yet. Run a new setup workflow to generate a richer analytics view.
+              </div>
+            )}
+          </div>
+
+          <div className="bg-[#12121a] border border-[#2d2c41] rounded-2xl p-6">
+            <h2 className="text-xl font-bold text-white tracking-tight mb-2">Actionable insights</h2>
+            <p className="text-sm text-[#a5a0c4] mb-6">Derived from your saved sessions, not fabricated from a single score.</p>
+            <div className="grid grid-cols-1 gap-4">
+              <InsightCard
+                title="Consistency check"
+                tone="green"
+                body={`You have ${summary.total_sessions || 0} saved sessions and ${summary.completed_sessions || 0} completed runs. Keep your prep cadence steady to raise the average readiness beyond ${averageReadiness.toFixed(1)}%.`}
+              />
+              <InsightCard
+                title="Fastest payoff"
+                tone="amber"
+                body={weakAreas.length > 0 ? `The most repeated gap is ${weakAreas[0].topic}. Prioritize it first in your roadmap for the biggest improvement return.` : "No repeated weak area data is available yet, so the next run should focus on building your question bank and gap profile."}
+              />
+              <InsightCard
+                title="Target focus"
+                tone="violet"
+                body={`Your current active session is ${session.company} · ${session.role}. Use this analytics view to compare future runs against that baseline.`}
+              />
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );
+}
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  sublabel,
+}: {
+  icon: any;
+  label: string;
+  value: string;
+  sublabel: string;
+}) {
+  return (
+    <div className="bg-[#12121a] border border-[#2d2c41] rounded-2xl p-5 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 blur-[40px] rounded-full pointer-events-none" />
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] text-[#a5a0c4] font-semibold">{label}</div>
+          <div className="text-3xl font-bold text-white mt-2">{value}</div>
+          <div className="text-xs text-[#7c7899] mt-2">{sublabel}</div>
+        </div>
+        <div className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-accent">
+          <Icon size={20} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InsightCard({
+  title,
+  body,
+  tone,
+}: {
+  title: string;
+  body: string;
+  tone: "green" | "amber" | "violet";
+}) {
+  const toneClasses = {
+    green: "text-[#10b981] bg-[#10b981]/10 border-[#10b981]/20",
+    amber: "text-[#f59e0b] bg-[#f59e0b]/10 border-[#f59e0b]/20",
+    violet: "text-[#8b5cf6] bg-[#8b5cf6]/10 border-[#8b5cf6]/20",
+  };
+
+  return (
+    <div className="bg-[#0a0a0f] border border-[#2d2c41] rounded-xl p-5">
+      <div className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${toneClasses[tone]} mb-3`}>
+        {title}
+      </div>
+      <p className="text-sm text-[#a5a0c4] leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+function formatTime(totalSeconds: number) {
+  if (!totalSeconds || totalSeconds <= 0) return "0m";
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.round(totalSeconds % 60);
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m ${seconds}s`;
 }

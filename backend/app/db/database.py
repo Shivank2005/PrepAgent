@@ -42,6 +42,7 @@ class Session(Base):
     time_taken = Column(Integer, default=0)
     accuracy = Column(Float, default=0.0)
     final_score = Column(Float, default=0.0)
+    interviewer_persona = Column(String, default="Standard Recruiter")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
 

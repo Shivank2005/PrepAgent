@@ -32,6 +32,7 @@ class StartSessionRequest(BaseModel):
     timeline_days: int = 14
     resume_text: str | None = None
     previous_session_id: str | None = None
+    interviewer_persona: str | None = "Standard Recruiter"
 
 
 @router.post("/session")
@@ -41,6 +42,7 @@ async def create_session(req: StartSessionRequest, db: AsyncSession = Depends(ge
     weak_areas = None
     study_plan = None
     resume_analysis = None
+    interviewer_persona = req.interviewer_persona or "Standard Recruiter"
     
     if req.previous_session_id:
         result = await db.execute(select(DBSession).where(DBSession.id == req.previous_session_id))
@@ -50,6 +52,9 @@ async def create_session(req: StartSessionRequest, db: AsyncSession = Depends(ge
             weak_areas = old_session.weak_areas
             study_plan = old_session.study_plan
             resume_analysis = old_session.resume_analysis
+            # If not provided, fallback to the old session's persona
+            if not req.interviewer_persona and old_session.interviewer_persona:
+                interviewer_persona = old_session.interviewer_persona
 
     db_session = DBSession(
         id=session_id,
@@ -62,6 +67,7 @@ async def create_session(req: StartSessionRequest, db: AsyncSession = Depends(ge
         resume_analysis=resume_analysis,
         mock_questions=None,
         current_question_index=0,
+        interviewer_persona=interviewer_persona,
     )
     db.add(db_session)
     await db.commit()
@@ -271,6 +277,7 @@ async def get_session(session_id: str, db: AsyncSession = Depends(get_db)):
         "time_taken": s.time_taken,
         "final_score": s.final_score,
         "accuracy": s.accuracy,
+        "interviewer_persona": getattr(s, "interviewer_persona", "Standard Recruiter"),
     }
 
 

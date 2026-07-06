@@ -7,6 +7,7 @@ import bcrypt
 from jose import JWTError, jwt
 import uuid
 import os
+import httpx
 
 from app.db.database import get_db, User
 
@@ -24,6 +25,9 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class GoogleLogin(BaseModel):
+    token: str
 
 class Token(BaseModel):
     access_token: str
@@ -116,3 +120,47 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
 @router.get("/me")
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return {"id": current_user.id, "email": current_user.email, "name": current_user.name}
+
+@router.post("/google", response_model=Token)
+async def google_auth(google_data: GoogleLogin, db: AsyncSession = Depends(get_db)):
+    try:
+        client_id = os.getenv("GOOGLE_CLIENT_ID", "dummy_client_id")
+        
+        # Verify the access token by calling Google's UserInfo API
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {google_data.token}"}
+            )
+            if response.status_code != 200:
+                raise ValueError("Invalid Google access token")
+            idinfo = response.json()
+            
+        email = idinfo['email']
+        name = idinfo.get('name', email.split('@')[0])
+        
+        result = await db.execute(select(User).where(User.email == email))
+        db_user = result.scalars().first()
+        
+        if not db_user:
+            db_user = User(
+                id=str(uuid.uuid4()),
+                email=email,
+                name=name,
+                hashed_password="OAUTH_USER" # No password for OAuth users
+            )
+            db.add(db_user)
+            await db.commit()
+            await db.refresh(db_user)
+            
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": db_user.email, "id": db_user.id}, expires_delta=access_token_expires
+        )
+        return {"access_token": access_token, "token_type": "bearer", "user": {"id": db_user.id, "email": db_user.email, "name": db_user.name}}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid Google token: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

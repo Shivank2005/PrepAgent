@@ -31,6 +31,7 @@ export default function SetupWizard() {
 
   const [timelineDays, setTimelineDays] = useState(14);
   const [dailyHours, setDailyHours] = useState("3h");
+  const [interviewerPersona, setInterviewerPersona] = useState("Standard Recruiter");
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamProgress, setStreamProgress] = useState<any>({
@@ -69,7 +70,8 @@ export default function SetupWizard() {
         company: selectedCompany,
         role: role,
         timeline_days: timelineDays,
-        resume_text: resumeText
+        resume_text: resumeText,
+        interviewer_persona: interviewerPersona
       });
       const sessionId = sessionRes.data.session_id;
       setActiveSessionId(sessionId);
@@ -155,12 +157,47 @@ export default function SetupWizard() {
         <p className="text-[#a5a0c4] text-sm">Choose the company you're preparing for. Our RAG corpus has recency-weighted interview experiences for each.</p>
       </div>
 
+      <div className="mb-4">
+        <h3 className="text-xs font-bold text-accent uppercase tracking-wider mb-3">Curated Interview Packs</h3>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        {[
+          { name: "Google", sector: "Tech", diff: "Very Hard", diffColor: "text-[#ff4757] border-[#ff4757]/30 bg-[#ff4757]/10", tags: ["Algorithms", "System Design", "Coding"], curated: true },
+          { name: "Amazon", sector: "Tech / E-commerce", diff: "Hard", diffColor: "text-[#ff6b6b] border-[#ff6b6b]/30 bg-[#ff6b6b]/10", tags: ["LP Questions", "DSA", "System Design"], curated: true },
+          { name: "Microsoft", sector: "Tech", diff: "Medium-Hard", diffColor: "text-[#fbbf24] border-[#fbbf24]/30 bg-[#fbbf24]/10", tags: ["DSA", "OOP", "Behavioural"], curated: true },
+          { name: "Meta", sector: "Tech", diff: "Very Hard", diffColor: "text-[#ff4757] border-[#ff4757]/30 bg-[#ff4757]/10", tags: ["System Design", "Product Architecture", "DSA"], curated: true },
+        ].map((c) => (
+          <div 
+            key={c.name} 
+            onClick={() => { setSelectedCompany(c.name); setRole("SDE-2 / Mid Level"); }}
+            className={`glass-card p-5 rounded-xl cursor-pointer transition-all relative overflow-hidden ${
+              selectedCompany === c.name 
+                ? "border-accent shadow-[0_0_20px_rgba(6,182,212,0.15)] bg-accent/5" 
+                : "border-[#2d2c41] bg-[#181724]/70 hover:border-white/20"
+            }`}
+          >
+            <div className="absolute top-0 right-0 bg-accent text-[#060609] text-[9px] font-bold px-2 py-0.5 rounded-bl">CURATED</div>
+            <div className="flex justify-between items-start mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[#2d2c41]/50 flex items-center justify-center text-[#a5a0c4]">
+                  <Building2 size={20} />
+                </div>
+                <div>
+                  <div className="font-bold text-white">{c.name} Pack</div>
+                  <div className="text-[10px] text-[#5c5875]">Curated question banks & templates</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-4">
+        <h3 className="text-xs font-bold text-[#a5a0c4] uppercase tracking-wider mb-3">Other Target Companies</h3>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         {[
           { name: "Boeing", sector: "Aerospace & Defense", diff: "Hard", diffColor: "text-[#ff6b6b] border-[#ff6b6b]/30 bg-[#ff6b6b]/10", tags: ["OOP Design", "System Design", "DSA"] },
-          { name: "Amazon", sector: "Tech / E-commerce", diff: "Hard", diffColor: "text-[#ff6b6b] border-[#ff6b6b]/30 bg-[#ff6b6b]/10", tags: ["LP Questions", "DSA", "System Design"] },
-          { name: "Google", sector: "Tech", diff: "Very Hard", diffColor: "text-[#ff4757] border-[#ff4757]/30 bg-[#ff4757]/10", tags: ["Algorithms", "System Design", "Coding"] },
-          { name: "Microsoft", sector: "Tech", diff: "Medium-Hard", diffColor: "text-[#fbbf24] border-[#fbbf24]/30 bg-[#fbbf24]/10", tags: ["DSA", "OOP", "Behavioural"] },
           { name: "Infosys", sector: "IT Services", diff: "Medium", diffColor: "text-accent2 border-accent2/30 bg-accent2/10", tags: ["Aptitude", "DBMS", "OS Basics"] },
           { name: "TCS", sector: "IT Services", diff: "Medium", diffColor: "text-accent2 border-accent2/30 bg-accent2/10", tags: ["Aptitude", "Coding", "DBMS"] },
         ].map((c) => (
@@ -176,7 +213,7 @@ export default function SetupWizard() {
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-[#2d2c41]/50 flex items-center justify-center text-[#a5a0c4]">
-                  {c.sector.includes("Aerospace") ? <Globe2 size={20} /> : c.sector.includes("IT") ? <Server size={20} /> : <Building2 size={20} />}
+                  {c.sector.includes("Aerospace") ? <Globe2 size={20} /> : <Server size={20} />}
                 </div>
                 <div>
                   <div className="font-bold text-white">{c.name}</div>
@@ -298,6 +335,30 @@ export default function SetupWizard() {
               }`}
             >
               {h}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <label className="block text-sm font-bold text-white mb-2">Interviewer Persona</label>
+        <p className="text-[#a5a0c4] text-xs mb-3">Select the behavior of the AI interviewer evaluating your responses.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            { id: "Standard Recruiter", name: "Standard Recruiter", desc: "Focuses on STAR method and structured logic." },
+            { id: "Encouraging Mentor", name: "Encouraging Mentor", desc: "Provides helpful hints and positive coaching." },
+            { id: "Tough Tech Lead", name: "Tough Tech Lead", desc: "Very critical, direct feedback on trade-offs & edge cases." }
+          ].map(p => (
+            <button 
+              key={p.id}
+              type="button"
+              onClick={() => setInterviewerPersona(p.id)}
+              className={`p-4 rounded-xl border flex flex-col items-start text-left transition-all ${
+                interviewerPersona === p.id ? "border-accent bg-accent/5 text-white" : "border-[#2d2c41] bg-[#12121a] text-[#a5a0c4]"
+              }`}
+            >
+              <div className="font-bold text-sm mb-1">{p.name}</div>
+              <div className="text-[10px] text-[#5c5875] leading-relaxed">{p.desc}</div>
             </button>
           ))}
         </div>

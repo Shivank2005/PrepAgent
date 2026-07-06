@@ -31,14 +31,7 @@ export default function RoadmapPage() {
       const s = res.data;
       setSession(s);
       
-      const plan = Array.isArray(s.study_plan) ? s.study_plan : (s.study_plan?.phases || []).flatMap((p: any, i: number) => 
-        (p.tasks || []).map((t: string, j: number) => ({ 
-          task: typeof t === 'string' ? t : (t as any).name || 'Unknown task', 
-          day: j + 1 + (i * 3),
-          phase: p.name 
-        }))
-      );
-      setStudyPlan(plan);
+
     } catch (err: any) {
       console.error(err);
       if (err.response && err.response.status === 404) {

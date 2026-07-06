@@ -100,7 +100,9 @@ export default function GapAnalysisPage() {
               // Procedurally generate some mock confidence/priority stats for UI richness
               const priority = i < 2 ? "High" : i < 4 ? "Medium" : "Low";
               const priorityColor = priority === "High" ? "text-[#ef4444] bg-[#ef4444]/10 border-[#ef4444]/30" : priority === "Medium" ? "text-[#f59e0b] bg-[#f59e0b]/10 border-[#f59e0b]/30" : "text-[#10b981] bg-[#10b981]/10 border-[#10b981]/30";
-              const confidence = Math.floor(Math.random() * 20) + 30; // 30-50%
+              const baseConfidence = 48 - (i * 4);
+              const readinessAdjustment = Math.max(0, Math.round((session.readiness_score || 0) / 10));
+              const confidence = Math.max(18, Math.min(78, baseConfidence + readinessAdjustment));
               
               return (
                 <div key={i} className="bg-[#12121a] border border-[#2d2c41] hover:border-[#5c5875] transition-colors rounded-xl p-6 relative overflow-hidden group">
@@ -123,13 +125,18 @@ export default function GapAnalysisPage() {
                     </div>
                   </div>
                   
-                  <div className="border-t border-[#2d2c41] pt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-[#a5a0c4] text-sm">
-                      <Lightbulb size={16} className="text-[#fbbf24]" />
-                      Included in Study Plan
-                    </div>
-                    <Link href="/roadmap" className="text-[#8b5cf6] hover:text-[#a855f7] p-2 rounded-lg hover:bg-[#8b5cf6]/10 transition-colors">
-                      <ChevronRight size={18} />
+                  <div className="border-t border-[#2d2c41] pt-5 mt-2 flex items-center justify-between gap-3">
+                    <Link 
+                      href="/roadmap" 
+                      className="flex-1 bg-[#181724] hover:bg-[#2d2c41] border border-[#2d2c41] text-white text-xs font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      <BookOpen size={14} /> Review Notes
+                    </Link>
+                    <Link 
+                      href={`/drill/${encodeURIComponent(topic)}`} 
+                      className="flex-1 bg-[#8b5cf6]/10 hover:bg-[#8b5cf6]/20 border border-[#8b5cf6]/30 text-[#c084fc] text-xs font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      <Crosshair size={14} /> Practice Now
                     </Link>
                   </div>
                 </div>

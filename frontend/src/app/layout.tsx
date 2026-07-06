@@ -4,6 +4,8 @@ import { Outfit, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 
+import Providers from "@/components/Providers";
+
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
@@ -12,14 +14,19 @@ export const metadata: Metadata = {
   description: "AI-powered interview prep with RAG, LangGraph, and personalized roadmaps",
 };
 
+import GroqAssistant from "@/components/GroqAssistant";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${outfit.variable} ${jetbrains.variable}`}>
       <body className="font-sans antialiased bg-bg0 text-textPrimary h-screen flex overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 flex flex-col h-full overflow-y-auto relative z-10">
-          {children}
-        </main>
+        <Providers>
+          <Sidebar />
+          <main className="flex-1 flex flex-col h-full overflow-y-auto relative z-10">
+            {children}
+          </main>
+          <GroqAssistant />
+        </Providers>
         
         {/* Ambient background from globals.css */}
         <div className="ambient-bg">

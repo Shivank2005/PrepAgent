@@ -72,6 +72,7 @@ async def evaluate_answer(req: AnswerRequest, db: AsyncSession = Depends(get_db)
         "session_id": req.session_id,
         "step": "eval_engine",
         "evaluation_feedback": None,
+        "interviewer_persona": getattr(s, "interviewer_persona", "Standard Recruiter"),
     }
 
     final_state = await invoke_agent(state)
@@ -154,12 +155,13 @@ async def complete_session(session_id: str, req: CompleteRequest, db: AsyncSessi
     s.status = "COMPLETED"
     s.time_taken = req.time_taken
     
-    # Calculate a simple accuracy metric based on readiness score (e.g., if readiness is 80, accuracy is 80%)
-    # If the user answered 0 questions, their score should be 0.
+    # Scale the final score based on the percentage of questions actually completed
     if not s.current_question_index or s.current_question_index == 0:
         s.final_score = 0.0
     else:
-        s.final_score = s.readiness_score or 0.0
+        total_questions = len(s.mock_questions) if s.mock_questions else 1
+        completion_ratio = min(1.0, s.current_question_index / total_questions)
+        s.final_score = (s.readiness_score or 0.0) * completion_ratio
         
     s.accuracy = min(100.0, max(0.0, s.final_score))
     

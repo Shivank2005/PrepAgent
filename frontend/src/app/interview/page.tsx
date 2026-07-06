@@ -1,11 +1,23 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Send, Clock, PlayCircle, History, Loader2, ArrowRight, Target, CheckCircle2, PartyPopper } from "lucide-react";
+import { Send, Clock, PlayCircle, History, Loader2, ArrowRight, Target, CheckCircle2, PartyPopper, Mic, MicOff, Play, Terminal } from "lucide-react";
 import Link from "next/link";
-import { getNextQuestion, evaluateAnswer, api, streamChat } from "@/lib/api";
+import { getNextQuestion, evaluateAnswer, api, streamChat, executeCode } from "@/lib/api";
 import { getActiveSessionId, getAuthToken, clearActiveSessionId, setActiveSessionId } from "@/lib/store";
 import { useRouter } from "next/navigation";
+import Editor from "@monaco-editor/react";
+
+const LANGUAGE_BOILERPLATES: Record<string, string> = {
+  javascript: `// Write your solution here\n\nfunction solution() {\n  \n}\n`,
+  python: `# Write your solution here\n\ndef solution():\n    pass\n`,
+  java: `// Write your full program here. \n// A 'public class' with a 'public static void main' is required.\n\nimport java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        // Test your logic here\n        System.out.println("Hello World");\n    }\n}\n`,
+  cpp: `// Write your full program here.\n#include <iostream>\n#include <vector>\n\nusing namespace std;\n\nint main() {\n    // Test your logic here\n    cout << "Hello World" << endl;\n    return 0;\n}\n`,
+  c: `// Write your full program here.\n#include <stdio.h>\n\nint main() {\n    // Test your logic here\n    printf("Hello World\\n");\n    return 0;\n}\n`,
+  typescript: `// Write your solution here\n\nfunction solution(): void {\n  \n}\n`,
+  go: `// Write your full program here.\npackage main\n\nimport "fmt"\n\nfunc main() {\n    // Test your logic here\n    fmt.Println("Hello World")\n}\n`,
+  rust: `// Write your full program here.\n\nfn main() {\n    // Test your logic here\n    println!("Hello World");\n}\n`
+};
 
 export default function MockInterview() {
   const router = useRouter();
@@ -18,6 +30,13 @@ export default function MockInterview() {
   
   const [answer, setAnswer] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  
+  const [codeOutput, setCodeOutput] = useState("");
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [inputMode, setInputMode] = useState<"text" | "code">("text");
+  const [codeLang, setCodeLang] = useState("javascript");
   
   useEffect(() => {
     if (textareaRef.current) {
@@ -33,6 +52,88 @@ export default function MockInterview() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const elapsedTimeRef = useRef(0);
   const [interviewComplete, setInterviewComplete] = useState(false);
+  const [countdown, setCountdown] = useState(600); // 10 minutes (600s) per question
+
+  useEffect(() => {
+    if (!currentQuestion) return;
+    setCountdown(600);
+    
+    // TTS: Read the question out loud
+    if (typeof window !== "undefined" && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(currentQuestion.question);
+      utterance.rate = 0.95;
+      window.speechSynthesis.speak(utterance);
+    }
+    
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [currentQuestion]);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if (typeof window !== "undefined" && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+
+      recognitionRef.current.onresult = (event: any) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        if (finalTranscript) {
+          setAnswer((prev) => prev + (prev.endsWith(" ") ? "" : " ") + finalTranscript);
+        }
+      };
+      
+      recognitionRef.current.onerror = (event: any) => {
+        console.error("Speech recognition error", event.error);
+        setIsListening(false);
+      };
+      
+      recognitionRef.current.onend = () => {
+        if (isListening) recognitionRef.current.start();
+      };
+    }
+  }, [isListening]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      if (inputMode === "code") setInputMode("text");
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
+
+  const handleRunCode = async () => {
+    if (!answer.trim()) return;
+    setIsExecuting(true);
+    setCodeOutput("");
+    try {
+      const out = await executeCode(answer, codeLang);
+      const result = out.stderr ? `${out.stdout}\n⚠️ ${out.stderr}` : (out.stdout || out.output || "Program finished with no output.");
+      setCodeOutput(result.trim());
+    } catch (e: any) {
+      setCodeOutput(e.message || "Execution failed.");
+    } finally {
+      setIsExecuting(false);
+    }
+  };
 
   useEffect(() => {
     if (!session?.session_id) return;
@@ -76,7 +177,6 @@ export default function MockInterview() {
         time_taken: finalTime
       });
       localStorage.removeItem(key);
-      clearActiveSessionId();
       router.push(`/result/${idToComplete}`);
     } catch (err: any) {
       console.error("Failed to complete session", err);
@@ -108,7 +208,6 @@ export default function MockInterview() {
       setLoading(true);
       const sessionRes = await api.get(`/chat/session/${sessionId}`);
       if (sessionRes.data.status === "COMPLETED") {
-        clearActiveSessionId();
         router.push(`/result/${sessionId}`);
         return;
       }
@@ -187,19 +286,29 @@ export default function MockInterview() {
         </div>
       </header>
 
-      <main className="flex-1 p-8 max-w-[1000px] mx-auto w-full flex flex-col gap-8 relative overflow-y-auto custom-scrollbar">
+      <main className="flex-1 p-8 max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 relative overflow-y-auto custom-scrollbar">
         
-        {/* Top Row - Question */}
-        <div className="w-full">
-          <div className="glass-card rounded-2xl border border-[#2d2c41] bg-[#12121a]/80 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-              <span className="text-sm font-bold text-[#a5a0c4]">Q{questionIndex + 1}</span>
-              <span className="text-xs font-bold text-[#ff6b6b] border border-[#ff6b6b]/30 bg-[#ff6b6b]/10 px-3 py-1 rounded-full uppercase tracking-wider">
-                {currentQuestion?.difficulty || "Medium"}
-              </span>
-              <span className="text-xs font-bold text-accent border border-accent/30 bg-accent/10 px-3 py-1 rounded-full flex items-center gap-1.5">
-                <TargetIcon /> {currentQuestion?.topic || "Technical"}
-              </span>
+        {/* Left Column: Question & Coding Pad (7 cols) */}
+        <div className="lg:col-span-7 flex flex-col gap-6 h-fit">
+          <div className="glass-card rounded-2xl border border-[#2d2c41] bg-[#12121a]/80 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.3)] relative overflow-hidden">
+            {/* Visual Countdown Bar */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-[#2d2c41]">
+              <div 
+                className={`h-full transition-all duration-1000 ${countdown < 60 ? 'bg-[#ff6b6b] animate-pulse' : 'bg-accent'}`} 
+                style={{ width: `${(countdown / 600) * 100}%` }}
+              />
+            </div>
+            
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-[#a5a0c4]">Q{questionIndex + 1}</span>
+                <span className="text-xs font-bold text-[#ff6b6b] border border-[#ff6b6b]/30 bg-[#ff6b6b]/10 px-3 py-1 rounded-full uppercase tracking-wider">
+                  {currentQuestion?.difficulty || "Medium"}
+                </span>
+                <span className="text-xs font-bold text-accent border border-accent/30 bg-accent/10 px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <TargetIcon /> {currentQuestion?.topic || "Technical"}
+                </span>
+              </div>
             </div>
 
             <div className="mb-6">
@@ -217,48 +326,116 @@ export default function MockInterview() {
               </div>
             )}
           </div>
-        </div>
 
-        {/* Bottom Row - Answer Area & Feedback */}
-        <div className="flex flex-col gap-6">
-          <div className="glass-card rounded-2xl border border-[#2d2c41] bg-[#12121a]/80 flex flex-col overflow-hidden min-h-[500px] h-auto">
+          <div className="glass-card rounded-2xl border border-[#2d2c41] bg-[#12121a]/80 flex flex-col overflow-hidden min-h-[480px]">
             <div className="flex items-center justify-between p-4 border-b border-white/[0.05] bg-[#12121a]">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5 opacity-70">
                   <div className="w-3 h-3 rounded-full bg-[#ff5f56]" />
                   <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
                   <div className="w-3 h-3 rounded-full bg-[#27c93f]" />
                 </div>
-                <h3 className="font-bold text-white/90 text-sm ml-2 font-mono">solution.js</h3>
+                <div className="flex bg-[#060609] p-1 rounded-lg border border-white/5 ml-2">
+                  <button onClick={() => setInputMode("text")} className={`px-3 py-1 rounded text-xs font-bold transition-all ${inputMode === "text" ? "bg-[#2d2c41] text-white" : "text-[#5c5875] hover:text-white"}`}>Text/Voice</button>
+                  <button 
+                    onClick={() => {
+                      setInputMode("code");
+                      if (!answer.trim() || Object.values(LANGUAGE_BOILERPLATES).some(b => b.trim() === answer.trim())) {
+                        setAnswer(LANGUAGE_BOILERPLATES[codeLang]);
+                      }
+                    }} 
+                    className={`px-3 py-1 rounded text-xs font-bold transition-all ${inputMode === "code" ? "bg-[#2d2c41] text-white" : "text-[#5c5875] hover:text-white"}`}>
+                    Code
+                  </button>
+                </div>
+                {inputMode === "code" && (
+                  <select 
+                    value={codeLang} 
+                    onChange={(e) => {
+                      const newLang = e.target.value;
+                      setCodeLang(newLang);
+                      if (!answer.trim() || Object.values(LANGUAGE_BOILERPLATES).some(b => b.trim() === answer.trim())) {
+                        setAnswer(LANGUAGE_BOILERPLATES[newLang]);
+                      }
+                    }}
+                    className="ml-2 bg-[#060609] text-white text-xs font-bold border border-white/10 rounded-lg px-2 py-1.5 focus:outline-none focus:border-accent/50 cursor-pointer"
+                  >
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="java">Java</option>
+                    <option value="cpp">C++</option>
+                    <option value="c">C</option>
+                    <option value="typescript">TypeScript</option>
+                    <option value="go">Go</option>
+                    <option value="rust">Rust</option>
+                  </select>
+                )}
               </div>
-              <span className="text-xs font-mono text-[#5c5875] bg-[#060609] px-3 py-1 rounded-full border border-white/5">{answer.length} chars (min 20)</span>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={toggleListening}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isListening ? 'bg-[#ff6b6b]/20 border-[#ff6b6b]/50 text-[#ff6b6b] animate-pulse' : 'bg-[#2d2c41]/50 border-white/10 text-[#a5a0c4] hover:bg-[#2d2c41]'}`}
+                >
+                  {isListening ? <Mic size={14} /> : <MicOff size={14} />}
+                  {isListening ? "Listening..." : "Dictate"}
+                </button>
+                <span className="text-xs font-mono text-[#5c5875] bg-[#060609] px-3 py-1 rounded-full border border-white/5">{answer.length} chars</span>
+              </div>
             </div>
             
-            <div className="w-full flex bg-[#0a0a0f] relative group transition-colors focus-within:bg-[#060609]">
-              <textarea 
-                ref={textareaRef}
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                disabled={!!feedback || isSubmitting}
-                className="w-full min-h-[350px] bg-transparent p-6 text-white font-mono text-sm resize-none focus:outline-none placeholder:text-[#5c5875]/50 leading-[26px] overflow-hidden disabled:opacity-70"
-                placeholder={`// Type your answer here.
-// Think out loud — explain your reasoning, mention trade-offs,
-// and name any patterns or algorithms you're using.
-
-function solution() {
-  
-}`}
-              />
+            <div className="w-full flex flex-col bg-[#0a0a0f] relative flex-1 min-h-[380px]">
+              {inputMode === "code" ? (
+                <div className="w-full h-full">
+                  <Editor
+                    height="380px"
+                    language={codeLang === "cpp" ? "cpp" : codeLang === "c" ? "c" : codeLang}
+                    theme="vs-dark"
+                    value={answer}
+                    loading={<div className="flex items-center justify-center h-[380px] text-[#5c5875]">Loading Editor...</div>}
+                    onChange={(val) => setAnswer(val || "")}
+                    options={{
+                      minimap: { enabled: false },
+                      fontSize: 14,
+                      fontFamily: "monospace",
+                      padding: { top: 16 },
+                      readOnly: !!feedback || isSubmitting
+                    }}
+                  />
+                  {codeOutput && (
+                    <div className="h-32 bg-black border-t border-white/10 p-4 overflow-y-auto font-mono text-xs text-gray-300">
+                      <div className="text-[#a5a0c4] mb-1 font-bold">Terminal Output:</div>
+                      <pre className="whitespace-pre-wrap">{codeOutput}</pre>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <textarea 
+                  ref={textareaRef}
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  disabled={!!feedback || isSubmitting}
+                  className="w-full min-h-[380px] bg-transparent p-6 text-white font-mono text-sm resize-none focus:outline-none placeholder:text-[#5c5875]/50 leading-[26px] disabled:opacity-70"
+                  placeholder="Type or dictate your answer here..."
+                />
+              )}
             </div>
             
             <div className="p-5 bg-[#0a0a0f] flex items-center justify-between border-t border-white/[0.02]">
-              <div className="text-xs text-[#5c5875] max-w-sm flex items-center gap-2">
-                <span className="text-accent text-base">✨</span> Tip: State the pattern or algorithm before you begin implementing.
+              <div className="flex items-center gap-3">
+                {inputMode === "code" && (
+                  <button 
+                    onClick={handleRunCode}
+                    disabled={isExecuting || !answer.trim() || !!feedback}
+                    className="bg-[#2d2c41] hover:bg-[#3f3e58] disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    {isExecuting ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />} Run Code
+                  </button>
+                )}
               </div>
               {!feedback ? (
                 <button 
                   onClick={submitAnswer}
-                  disabled={isSubmitting || answer.length < 20}
+                  disabled={isSubmitting || answer.length < 20 || countdown === 0}
                   className="bg-gradient-to-r from-accent to-[#3b82f6] hover:from-[#06b6d4] hover:to-[#2563eb] disabled:from-[#2d2c41] disabled:to-[#2d2c41] disabled:text-[#5c5875] text-white font-bold px-8 py-3 rounded-xl text-sm transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] disabled:shadow-none flex items-center gap-2 group"
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
@@ -269,6 +446,20 @@ function solution() {
                   <CheckCircle2 size={16} /> Submitted successfully
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: AI Interviewer Chat & Feedback (5 cols) */}
+        <div className="lg:col-span-5 flex flex-col gap-6 h-fit">
+          {/* Persona Card */}
+          <div className="glass-card rounded-xl border border-[#2d2c41] bg-[#12121a]/80 p-5 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] text-[#5c5875] font-bold uppercase tracking-wider">Interviewer Persona</div>
+              <div className="text-sm font-bold text-white mt-0.5">{session.interviewer_persona || "Standard Recruiter"}</div>
+            </div>
+            <div className="text-xs text-[#a5a0c4] bg-[#2d2c41]/50 px-3 py-1.5 rounded-lg border border-white/5">
+              Time Remaining: {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
             </div>
           </div>
 

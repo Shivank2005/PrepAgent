@@ -132,10 +132,28 @@ Return ONLY valid JSON."""),
     return parsed
 
 
-async def evaluate_answer_tool(question: dict, answer: str, company: str, history: List[str] = None) -> dict:
+async def evaluate_answer_tool(
+    question: dict, 
+    answer: str, 
+    company: str, 
+    history: List[str] = None, 
+    interviewer_persona: str = "Standard Recruiter"
+) -> dict:
     history_str = "\n".join(history) if history else "No previous turns."
+    
+    # Persona descriptions
+    persona_instructions = ""
+    if interviewer_persona == "Tough Tech Lead":
+        persona_instructions = "You are a very critical, dry, and demanding Tech Lead. You point out edge cases, code efficiency, time/space complexity, and flaws. Your feedback is blunt, direct, and minimalist."
+    elif interviewer_persona == "Encouraging Mentor":
+        persona_instructions = "You are a friendly, encouraging Mentor. You guide the candidate with helpful hints, point out what they did well, and gently nudge them towards the optimal solution."
+    else:  # Standard Recruiter / Standard Persona
+        persona_instructions = "You are a professional HR/Recruiter. You focus on structured communication (STAR method), high-level logical consistency, behavioral details, and core logic."
+
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a senior {company} interviewer.
+{persona_instructions}
+
 You can either ask a follow-up question to probe deeper (e.g., if trade-offs, edge cases, or complexity are missing), or finalize the evaluation.
 If the candidate has already answered a follow-up, or the response is comprehensive, finalize it.
 
@@ -159,6 +177,7 @@ Return ONLY valid JSON."""),
     chain = prompt | llm
     result = await chain.ainvoke({
         "company": company,
+        "persona_instructions": persona_instructions,
         "question": question.get("question", ""),
         "expected": ", ".join(question.get("expected_topics", [])),
         "history_str": history_str,

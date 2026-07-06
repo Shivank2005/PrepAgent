@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Loader2, PartyPopper, ArrowRight, Target, Clock, Trophy } from "lucide-react";
-import { api } from "@/lib/api";
-import { getAuthToken, clearActiveSessionId, setActiveSessionId } from "@/lib/store";
+import { Loader2, PartyPopper, ArrowRight, Target, Clock, Trophy, Download, Trash2 } from "lucide-react";
+import { api, deleteSession, generateLlmReport } from "@/lib/api";
+import { getAuthToken, clearActiveSessionId } from "@/lib/store";
 import { streamChat } from "@/lib/api";
 
 export default function ResultPage() {
@@ -16,6 +16,8 @@ export default function ResultPage() {
   
   const [isGeneratingNew, setIsGeneratingNew] = useState(false);
   const [streamProgress, setStreamProgress] = useState<any>({});
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!getAuthToken()) {
@@ -43,8 +45,56 @@ export default function ResultPage() {
   };
 
   const handleDashboard = () => {
-    clearActiveSessionId();
     router.push("/dashboard");
+  };
+
+  const handleExport = async () => {
+    if (!sessionId) return;
+    setIsExporting(true);
+    try {
+      const reportResponse = await generateLlmReport(sessionId);
+      
+      // Dynamic import to avoid SSR errors
+      const html2pdf = (await import('html2pdf.js')).default;
+      
+      const container = document.createElement("div");
+      container.innerHTML = reportResponse.html;
+      container.style.width = "794px";
+      container.style.backgroundColor = "#ffffff";
+      
+      const opt = {
+        margin:       15,
+        filename:     `PrepAgent-Report-${session?.company || "Session"}.pdf`,
+        image:        { type: 'jpeg', quality: 1.0 },
+        html2canvas:  { scale: 2, useCORS: true, width: 794, windowWidth: 794 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'], avoid: ['.qa-card'] }
+      };
+      
+      await html2pdf().set(opt).from(container).save();
+
+    } catch (err: any) {
+      alert(err?.message || "Unable to export this session");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!sessionId) return;
+    const confirmed = window.confirm("Delete this session and all of its chat history? This cannot be undone.");
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteSession(sessionId);
+      clearActiveSessionId();
+      router.push("/dashboard");
+    } catch (err: any) {
+      alert(err?.message || "Unable to delete this session");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (loading || !session) {
@@ -116,6 +166,22 @@ export default function ResultPage() {
             className="bg-accent hover:bg-accent/90 text-[#060609] font-bold px-8 py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] flex items-center justify-center gap-2 w-full sm:w-auto"
           >
             Start New Mock Session <ArrowRight size={18} />
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            className="bg-[#12121a] hover:bg-[#1b1b27] border border-[#2d2c41] text-white font-bold px-8 py-4 rounded-xl transition-all flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-60"
+          >
+            <Download size={18} />
+            {isExporting ? "Exporting..." : "Download Summary"}
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="bg-[#2a1417] hover:bg-[#3a171c] border border-[#5a1f28] text-[#fca5a5] font-bold px-8 py-4 rounded-xl transition-all flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-60"
+          >
+            <Trash2 size={18} />
+            {isDeleting ? "Deleting..." : "Delete Session"}
           </button>
         </div>
       </div>

@@ -21,6 +21,7 @@ export interface ChatStreamPayload {
   resume_text?: string;
   message: string;
   workflow_only?: boolean;
+  force_step?: string;
 }
 
 export async function streamChat(
@@ -101,6 +102,78 @@ export async function fetchSessionHistory() {
     return res.data;
   } catch (error) {
     throw normalizeApiError(error, "Unable to fetch session history");
+  }
+}
+
+export async function fetchAnalyticsSummary() {
+  try {
+    const res = await api.get(`/sessions/analytics-summary`);
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Unable to fetch analytics summary");
+  }
+}
+
+export async function exportSession(sessionId: string) {
+  try {
+    const res = await api.get(`/sessions/${sessionId}/export`);
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Unable to export session");
+  }
+}
+
+export async function generateLlmReport(sessionId: string) {
+  try {
+    const res = await api.get(`/sessions/${sessionId}/report/llm`);
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Unable to generate LLM report");
+  }
+}
+
+export async function deleteSession(sessionId: string) {
+  try {
+    const res = await api.delete(`/sessions/${sessionId}`);
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Unable to delete session");
+  }
+}
+
+export async function fetchCurrentStreak() {
+  try {
+    const res = await api.get(`/sessions/streak/current`);
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Unable to fetch streak data");
+  }
+}
+
+export async function fetchCompanyStreak(company: string) {
+  try {
+    const res = await api.get(`/sessions/company/${encodeURIComponent(company)}/streak`);
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Unable to fetch company streak data");
+  }
+}
+
+export async function fetchCompanyFocusList() {
+  try {
+    const res = await api.get(`/sessions/companies/focus-list`);
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Unable to fetch focus companies");
+  }
+}
+
+export async function executeCode(code: string, language: string = "javascript") {
+  try {
+    const res = await api.post("/code/run", { code, language });
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Code execution failed");
   }
 }
 

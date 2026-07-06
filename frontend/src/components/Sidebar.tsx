@@ -11,7 +11,8 @@ import {
   Settings,
   HelpCircle,
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  ArrowLeftRight
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -31,6 +32,7 @@ const NAV = [
 const TOOLS = [
   { href: "/status", icon: Bot, label: "Agent Status" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
+  { href: "/compare", icon: ArrowLeftRight, label: "Compare Sessions" },
 ];
 
 const BOTTOM_LINKS = [

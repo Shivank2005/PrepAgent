@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { RefreshCw, Bell, AlertTriangle, Timer, TrendingUp, Target, Flame, CheckSquare, AlertCircle, Loader2, PlayCircle, ChevronRight, Clock, Target as TargetIcon } from "lucide-react";
 import Link from "next/link";
-import { api, updateSessionTasks } from "@/lib/api";
-import { getActiveSessionId, getAuthToken } from "@/lib/store";
+import { api, updateSessionTasks, fetchAnalyticsSummary, fetchCurrentStreak, fetchCompanyFocusList } from "@/lib/api";
+import { getActiveSessionId, getAuthToken, setActiveSessionId } from "@/lib/store";
 import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
@@ -12,6 +12,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
   const [sessionHistory, setSessionHistory] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [streak, setStreak] = useState<any>(null);
+  const [focusCompanies, setFocusCompanies] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [dismissedNotifs, setDismissedNotifs] = useState<number[]>([]);
   const [hoveredPoint, setHoveredPoint] = useState<any>(null);
@@ -31,6 +34,7 @@ export default function DashboardPage() {
           if (historyRes.data && historyRes.data.length > 0) {
             // Use the most recent session's ID (history is usually returned descending, but backend does reverse in fetchSession. Let's just fetch history directly)
             const latestSession = historyRes.data[historyRes.data.length - 1];
+            setActiveSessionId(latestSession.id);
             await fetchSession(latestSession.id);
           } else {
             router.push("/setup");
@@ -51,6 +55,15 @@ export default function DashboardPage() {
       
       const historyRes = await api.get('/sessions/history');
       setSessionHistory(historyRes.data.reverse());
+      
+      const summaryRes = await fetchAnalyticsSummary();
+      setSummary(summaryRes);
+      
+      const streakRes = await fetchCurrentStreak();
+      setStreak(streakRes);
+      
+      const focusRes = await fetchCompanyFocusList();
+      setFocusCompanies(focusRes.focus_companies || []);
     } catch (err: any) {
       console.error(err);
       if (err.response && err.response.status === 404) {
@@ -115,6 +128,15 @@ export default function DashboardPage() {
   
   const totalGaps = weak_areas?.length || 0;
   const coveredGaps = Math.floor(totalGaps * (completionPct / 100));
+
+  const todayTasks = plan.filter((task: any) => {
+    const isCompleted = !!completed_tasks?.[task.task];
+    const isDueToday = task.day === daysElapsed + 1;
+    const isOverdue = (task.day || 0) < daysElapsed + 1 && !isCompleted;
+    return isDueToday || isOverdue;
+  });
+  const todayCompletedCount = todayTasks.filter((t: any) => !!completed_tasks?.[t.task]).length;
+  const todayCompletionPct = todayTasks.length ? Math.round((todayCompletedCount / todayTasks.length) * 100) : 100;
 
   // Adaptive Frontend Mappings for Data not provided by backend
   const phaseProgress = (study_plan?.phases || []).map((p: any) => {
@@ -199,19 +221,60 @@ export default function DashboardPage() {
     };
   });
 
-  // Generate dynamic notifications
+  // Generate dynamic notifications from real analytics
   const allNotifications = [];
-  if (isLagging && criticalGaps.length > 0) {
-    allNotifications.push({ id: 1, title: 'Behind Schedule', text: `${criticalGaps.length} critical topics need attention.`, time: 'Just now', color: 'text-[#ef4444]', bg: 'bg-[#ef4444]/10', border: 'border-[#ef4444]/20' });
+  
+  const readinessChange = Number(summary?.readiness_change || 0);
+  const hasImproved = readinessChange >= 0;
+  if (readinessChange !== 0) {
+    allNotifications.push({
+      id: 1,
+      title: hasImproved ? 'Readiness Up!' : 'Readiness Down',
+      text: `Your latest score shifted by ${hasImproved ? '+' : ''}${readinessChange.toFixed(1)}% across ${summary?.total_sessions || 1} sessions.`,
+      time: 'Latest run',
+      color: hasImproved ? 'text-[#10b981]' : 'text-[#ef4444]',
+      bg: hasImproved ? 'bg-[#10b981]/10' : 'bg-[#ef4444]/10',
+      border: hasImproved ? 'border-[#10b981]/20' : 'border-[#ef4444]/20'
+    });
   }
-  if (completionPct >= 25 && completionPct < 50) {
-    allNotifications.push({ id: 2, title: 'Making Progress', text: `You're a quarter of the way there!`, time: '2h ago', color: 'text-[#8b5cf6]', bg: 'bg-[#8b5cf6]/10', border: 'border-[#8b5cf6]/20' });
+  
+  const weakAreaCount = (summary?.weak_area_counts || []).length;
+  if (weakAreaCount > 0) {
+    const topWeak = summary.weak_area_counts[0];
+    allNotifications.push({
+      id: 2,
+      title: 'Top Gap Identified',
+      text: `${topWeak.topic} appears most often in your weak areas. Prioritize it next.`,
+      time: 'From history',
+      color: 'text-[#f59e0b]',
+      bg: 'bg-[#f59e0b]/10',
+      border: 'border-[#f59e0b]/20'
+    });
   }
-  if (completionPct >= 50) {
-    allNotifications.push({ id: 3, title: 'Halfway There!', text: `You've completed 50% of your plan. Keep going!`, time: '1h ago', color: 'text-[#10b981]', bg: 'bg-[#10b981]/10', border: 'border-[#10b981]/20' });
+  
+  const completionRate = Number(summary?.completion_rate || completionPct);
+  if (completionRate >= 50 && completionRate < 100) {
+    allNotifications.push({
+      id: 3,
+      title: 'Milestone Reached',
+      text: `You've completed ${completionRate.toFixed(0)}% of your roadmap tasks across all sessions.`,
+      time: 'In progress',
+      color: 'text-[#8b5cf6]',
+      bg: 'bg-[#8b5cf6]/10',
+      border: 'border-[#8b5cf6]/20'
+    });
   }
+  
   if (allNotifications.length === 0) {
-    allNotifications.push({ id: 4, title: 'Plan Ready', text: `Your ${timeline_days}-day study plan is generated and ready to go.`, time: 'Recently', color: 'text-[#fbbf24]', bg: 'bg-[#fbbf24]/10', border: 'border-[#fbbf24]/20' });
+    allNotifications.push({
+      id: 4,
+      title: 'Plan Ready',
+      text: `Your ${timeline_days}-day study plan is generated and ready to go. Run your first mock to start tracking progress.`,
+      time: 'Recently',
+      color: 'text-[#fbbf24]',
+      bg: 'bg-[#fbbf24]/10',
+      border: 'border-[#fbbf24]/20'
+    });
   }
   
   const notifications = allNotifications.filter(n => !dismissedNotifs.includes(n.id));
@@ -367,13 +430,19 @@ export default function DashboardPage() {
           <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl p-6 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium text-[#777294] uppercase tracking-wider">STUDY STREAK</span>
-              <div className="w-8 h-8 rounded-lg bg-[#10b981]/10 flex items-center justify-center">
-                <Flame size={18} className="text-[#10b981]" />
+              <div className="w-8 h-8 rounded-lg bg-[#ff6b6b]/10 flex items-center justify-center">
+                <Flame size={18} className={streak?.current_streak ?? 0 > 0 ? "text-[#ff6b6b]" : "text-[#777294]"} />
               </div>
             </div>
             <div>
-              <div className="text-4xl font-bold text-white tracking-tight mb-2">{completedCount > 0 ? 1 : 0} <span className="text-lg font-medium text-[#777294]">days</span></div>
-              <div className="text-sm text-[#5c5875]">Keep studying to build your streak!</div>
+              <div className="text-4xl font-bold text-white tracking-tight mb-2">
+                {streak?.current_streak ?? 0} <span className="text-lg font-medium text-[#777294]">days</span>
+              </div>
+              <div className="text-sm text-[#5c5875]">
+                {streak?.current_streak ?? 0 > 0 
+                  ? `Best: ${streak?.best_streak ?? 0} days` 
+                  : `Last session: ${streak?.days_since_last ?? 0} days ago`}
+              </div>
             </div>
           </div>
 
@@ -406,6 +475,42 @@ export default function DashboardPage() {
           
         </div>
 
+        {/* Actionable Gaps & Drills */}
+        {weak_areas && weak_areas.length > 0 && (
+          <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl p-6 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-white tracking-tight">Gap Analysis to Action</h2>
+                <div className="text-sm text-[#5c5875]">Your identified weaknesses and immediate practice drills.</div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {weak_areas.map((gap: any, i: number) => {
+                const topicStr = typeof gap === 'string' ? gap : gap.topic || `Topic ${i + 1}`;
+                return (
+                  <div key={i} className="bg-[#1a1625] border border-[#2d2c41] rounded-lg p-5 flex flex-col justify-between hover:border-[#8b5cf6]/50 transition-all">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle size={16} className="text-[#f59e0b]" />
+                        <h3 className="font-bold text-white text-base">{topicStr}</h3>
+                      </div>
+                      <p className="text-xs text-[#a5a0c4] mb-4">
+                        Consistently appearing as a weak area in your mock sessions.
+                      </p>
+                    </div>
+                    <Link 
+                      href={`/drill/${encodeURIComponent(topicStr)}?session_id=${session.session_id}`}
+                      className="w-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white text-sm font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      Practice This Now <ChevronRight size={16} />
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {/* Mock Score Trend */}
         <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl p-6">
           <div className="flex items-center justify-between mb-8">
@@ -662,26 +767,76 @@ export default function DashboardPage() {
 
         {/* Today's Tasks */}
         <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl flex flex-col mb-12">
+          
+          {/* Focus Companies Section */}
+          {focusCompanies.length > 0 && (
+            <div className="p-6 border-b border-[#2d2c41]/50 bg-[#1a1625]">
+              <div className="mb-4">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Your Focus Companies</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                  {focusCompanies.map((company: any, i: number) => (
+                    <div key={i} className="bg-[#12121a] border border-[#2d2c41] rounded-lg p-4 hover:border-[#8b5cf6]/50 transition-all cursor-pointer group">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <div className="font-bold text-white text-sm mb-1">{company.company}</div>
+                          <div className="text-[11px] text-[#5c5875]">{company.attempts} attempts</div>
+                        </div>
+                        {company.current_streak > 0 && (
+                          <div className="flex items-center gap-1 bg-[#ff6b6b]/10 text-[#ff6b6b] px-2 py-1 rounded text-[10px] font-bold border border-[#ff6b6b]/20">
+                            <Flame size={10} />
+                            {company.current_streak}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-[#5c5875]">Best</span>
+                          <span className="text-[#10b981] font-bold">{company.best_score}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#5c5875]">Latest</span>
+                          <span className={company.latest_score > company.best_score - 10 ? "text-[#10b981]" : "text-[#ef4444]"} >{company.latest_score}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#5c5875]">Change</span>
+                          <span className={company.improvement >= 0 ? "text-[#10b981]" : "text-[#ef4444]"}>
+                            {company.improvement >= 0 ? '+' : ''}{company.improvement}%
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <button className="w-full mt-3 bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 text-[#8b5cf6] text-[11px] font-bold py-2 rounded transition-all group-hover:bg-[#8b5cf6]/20 group-hover:border-[#8b5cf6]/50">
+                        Practice Again
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Tasks Header */}
           <div className="p-6 pb-4">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h2 className="text-lg font-bold text-white tracking-tight">Today's Tasks</h2>
-                <div className="text-sm text-[#5c5875]">{completedCount}/{plan.length} complete · {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                <div className="text-sm text-[#5c5875]">{todayCompletedCount}/{todayTasks.length} complete · {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
               </div>
               <div className="bg-[#8b5cf6]/20 border border-[#8b5cf6]/30 text-[#c084fc] px-3 py-1 rounded-full text-xs font-bold">
-                {completionPct}%
+                {todayCompletionPct}%
               </div>
             </div>
             
             <div className="w-full h-1.5 bg-[#2d2c41] rounded-full mt-4 overflow-hidden">
-              <div className="h-full bg-[#8b5cf6] rounded-full" style={{ width: `${completionPct}%` }} />
+              <div className="h-full bg-[#8b5cf6] rounded-full" style={{ width: `${todayCompletionPct}%` }} />
             </div>
           </div>
 
           <div className="p-6 pt-2 space-y-5">
-            {plan.map((task: any, i: number) => {
+            {todayTasks.map((task: any, i: number) => {
               const isCompleted = !!completed_tasks?.[task.task];
-              const isOverdue = (task.day || 0) < daysElapsed && !isCompleted;
+              const isOverdue = (task.day || 0) < daysElapsed + 1 && !isCompleted;
               
               // Determine badge style
               const isMock = task.phase?.includes("Mock") || task.task?.includes("Mock");
@@ -729,8 +884,8 @@ export default function DashboardPage() {
               )
             })}
             
-            {!plan.length && (
-               <div className="text-[#a5a0c4] text-sm">No tasks in your study plan.</div>
+            {!todayTasks.length && (
+               <div className="text-[#a5a0c4] text-sm">No tasks for today. You're all caught up!</div>
             )}
           </div>
         </div>
