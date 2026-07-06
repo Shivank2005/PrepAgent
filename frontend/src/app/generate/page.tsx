@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { api, streamChat } from "@/lib/api";
 import { setActiveSessionId, getAuthToken } from "@/lib/store";
 
-export default function GeneratePage() {
+function GenerateContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const company = searchParams.get("company") || "Unknown";
@@ -67,5 +67,13 @@ export default function GeneratePage() {
       <h2 className="text-2xl font-bold text-white mb-2">Preparing your next mock session...</h2>
       <p className="text-[#a5a0c4]">Generating new questions and setting up the environment.</p>
     </div>
+  );
+}
+
+export default function GeneratePage() {
+  return (
+    <Suspense fallback={<div className="flex flex-col items-center justify-center h-full w-full bg-bg0"><Loader2 className="animate-spin text-accent" size={48} /></div>}>
+      <GenerateContent />
+    </Suspense>
   );
 }

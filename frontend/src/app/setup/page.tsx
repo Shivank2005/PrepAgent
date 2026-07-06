@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { Check, Upload, Calendar, Search, Building2, Server, Globe2, ChevronLeft, ChevronRight, AlertTriangle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { uploadResume, streamChat, api } from "@/lib/api";
 import { setActiveSessionId, getAuthToken } from "@/lib/store";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function SetupWizard() {
+function SetupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialCompany = searchParams.get("company");
@@ -462,5 +462,13 @@ export default function SetupWizard() {
         {step === 4 && renderStep4()}
       </div>
     </div>
+  );
+}
+
+export default function SetupWizard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen w-screen bg-[#060609]"><Loader2 className="animate-spin text-accent" size={48} /></div>}>
+      <SetupContent />
+    </Suspense>
   );
 }
