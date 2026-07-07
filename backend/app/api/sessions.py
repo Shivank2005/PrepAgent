@@ -4,6 +4,8 @@ from sqlalchemy import select, delete
 from sqlalchemy.orm.attributes import flag_modified
 from app.db.database import get_db, Session as DBSession, ChatMessage, AsyncSessionLocal
 from collections import Counter
+from app.api.auth import get_current_user
+from app.db.database import User
 import os
 import json
 from datetime import datetime, timedelta
@@ -41,23 +43,23 @@ def serialize_session(session: DBSession) -> dict:
     }
 
 @router.get("/")
-async def list_sessions(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(DBSession).order_by(DBSession.created_at.desc()).limit(20))
+async def list_sessions(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    result = await db.execute(select(DBSession).where(DBSession.user_id == current_user.id).order_by(DBSession.created_at.desc()).limit(20))
     sessions = result.scalars().all()
     return [{"id": s.id, "company": s.company, "role": s.role, "readiness_score": s.readiness_score} for s in sessions]
 
 @router.get("/history")
-async def session_history(db: AsyncSession = Depends(get_db)):
+async def session_history(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Get last 15 sessions, ordered newest to oldest, then reverse to return chronological
-    result = await db.execute(select(DBSession).order_by(DBSession.created_at.desc()).limit(15))
+    result = await db.execute(select(DBSession).where(DBSession.user_id == current_user.id).order_by(DBSession.created_at.desc()).limit(15))
     sessions = result.scalars().all()
     sessions.reverse()
     return [{"id": s.id, "company": s.company, "role": s.role, "readiness_score": s.readiness_score, "status": s.status, "time_taken": s.time_taken, "final_score": s.final_score, "accuracy": s.accuracy, "created_at": s.created_at.isoformat() if s.created_at else None} for s in sessions]
 
 
 @router.get("/analytics-summary")
-async def analytics_summary(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(DBSession).order_by(DBSession.created_at.asc()))
+async def analytics_summary(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    result = await db.execute(select(DBSession).where(DBSession.user_id == current_user.id).order_by(DBSession.created_at.asc()))
     sessions = result.scalars().all()
 
     if not sessions:
@@ -130,10 +132,10 @@ async def analytics_summary(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/streak/current")
-async def current_streak(db: AsyncSession = Depends(get_db)):
+async def current_streak(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     from datetime import datetime, timedelta
     
-    result = await db.execute(select(DBSession).order_by(DBSession.created_at.asc()))
+    result = await db.execute(select(DBSession).where(DBSession.user_id == current_user.id).order_by(DBSession.created_at.asc()))
     sessions = result.scalars().all()
     
     if not sessions:
@@ -200,8 +202,8 @@ async def current_streak(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{session_id}/export")
-async def export_session(session_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(DBSession).where(DBSession.id == session_id))
+async def export_session(session_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    result = await db.execute(select(DBSession).where(DBSession.id == session_id, DBSession.user_id == current_user.id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -228,8 +230,8 @@ async def export_session(session_id: str, db: AsyncSession = Depends(get_db)):
 from app.api.report_template import LLM_ANALYSIS_PROMPT, build_report_html
 
 @router.get("/{session_id}/report/llm")
-async def generate_llm_report(session_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(DBSession).where(DBSession.id == session_id))
+async def generate_llm_report(session_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    result = await db.execute(select(DBSession).where(DBSession.id == session_id, DBSession.user_id == current_user.id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -339,8 +341,8 @@ class UpdateTasksRequest(BaseModel):
 
 from fastapi import HTTPException
 @router.post("/{session_id}/tasks")
-async def update_session_tasks(session_id: str, req: UpdateTasksRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(DBSession).where(DBSession.id == session_id))
+async def update_session_tasks(session_id: str, req: UpdateTasksRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    result = await db.execute(select(DBSession).where(DBSession.id == session_id, DBSession.user_id == current_user.id))
     s = result.scalar_one_or_none()
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -350,7 +352,7 @@ async def update_session_tasks(session_id: str, req: UpdateTasksRequest, db: Asy
 
 
 @router.get("/company/{company}/streak")
-async def company_streak(company: str, db: AsyncSession = Depends(get_db)):
+async def company_streak(company: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     from datetime import datetime, timedelta
     
     result = await db.execute(
@@ -438,9 +440,9 @@ async def company_streak(company: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/companies/focus-list")
-async def company_focus_list(db: AsyncSession = Depends(get_db)):
+async def company_focus_list(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Return top companies by attempt count with their streaks and metrics"""
-    result = await db.execute(select(DBSession).order_by(DBSession.created_at.asc()))
+    result = await db.execute(select(DBSession).where(DBSession.user_id == current_user.id).order_by(DBSession.created_at.asc()))
     sessions = result.scalars().all()
     
     if not sessions:
@@ -513,8 +515,8 @@ async def company_focus_list(db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/{session_id}")
-async def delete_session(session_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(DBSession).where(DBSession.id == session_id))
+async def delete_session(session_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    result = await db.execute(select(DBSession).where(DBSession.id == session_id, DBSession.user_id == current_user.id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -527,7 +529,7 @@ async def delete_session(session_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.get("/compare")
 async def compare_sessions(
-    db: AsyncSession = Depends(get_db), 
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user), 
     company: str | None = None, 
     role: str | None = None,
     session_a: str | None = None,
@@ -547,7 +549,7 @@ async def compare_sessions(
             "session_b": serialize_session(sb)
         }
     
-    query = select(DBSession)
+    query = select(DBSession).where(DBSession.user_id == current_user.id)
     if company:
         query = query.where(DBSession.company == company)
     if role:
@@ -561,7 +563,7 @@ async def compare_sessions(
 async def background_regenerate_study_plan(session_id: str):
     try:
         async with AsyncSessionLocal() as db:
-            result = await db.execute(select(DBSession).where(DBSession.id == session_id))
+            result = await db.execute(select(DBSession).where(DBSession.id == session_id, DBSession.user_id == current_user.id))
             session = result.scalar_one_or_none()
             if session:
                 plan = await generate_study_plan_tool(
@@ -580,9 +582,9 @@ async def add_custom_gap(
     session_id: str,
     req: AddGapRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(DBSession).where(DBSession.id == session_id))
+    result = await db.execute(select(DBSession).where(DBSession.id == session_id, DBSession.user_id == current_user.id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")

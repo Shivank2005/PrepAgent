@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db, Session as DBSession, ChatMessage
+from app.api.auth import get_current_user_optional
 from app.agents.graph import agent_graph, AgentState
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -36,7 +37,7 @@ class StartSessionRequest(BaseModel):
 
 
 @router.post("/session")
-async def create_session(req: StartSessionRequest, db: AsyncSession = Depends(get_db)):
+async def create_session(req: StartSessionRequest, db: AsyncSession = Depends(get_db), current_user = Depends(get_current_user_optional)):
     session_id = str(uuid.uuid4())
     readiness_score = None
     weak_areas = None
@@ -58,6 +59,7 @@ async def create_session(req: StartSessionRequest, db: AsyncSession = Depends(ge
 
     db_session = DBSession(
         id=session_id,
+        user_id=current_user.id if current_user else None,
         company=req.company,
         role=req.role or "Software Engineer",
         timeline_days=req.timeline_days,
