@@ -637,7 +637,7 @@ export default function DashboardPage() {
               <h2 className="text-lg font-bold text-white tracking-tight">Recent Mock Sessions</h2>
               <div className="text-sm text-[#5c5875]">{sessionHistory.length} total sessions recorded</div>
             </div>
-            <Link href="/interview" className="text-[#8b5cf6] text-sm font-medium hover:text-[#a855f7] flex items-center gap-1 transition-colors">
+            <Link href="/setup" className="text-[#8b5cf6] text-sm font-medium hover:text-[#a855f7] flex items-center gap-1 transition-colors">
               New session <ChevronRight size={16} />
             </Link>
           </div>
