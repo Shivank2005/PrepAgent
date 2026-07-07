@@ -17,7 +17,7 @@ import {
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearAuthToken, getUserData, getActiveSessionId } from "@/lib/store";
+import { clearAuthToken, getUserData, getActiveSessionId, getAuthToken } from "@/lib/store";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
@@ -60,9 +60,9 @@ export default function Sidebar() {
                  // Don't route here, let dashboard handle routing to avoid conflicts
              }
          });
-    } else {
+    } else if (getAuthToken()) {
       // Fetch latest from history to remember context
-      api.get("/chat/history").then(res => {
+      api.get("/sessions/history").then(res => {
         if (res.data && res.data.length > 0) {
           setSession(res.data[res.data.length - 1]);
         }
