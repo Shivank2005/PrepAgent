@@ -94,10 +94,5 @@ uvicorn app.main:app --reload --port 8000
 
 ---
 
-## 📈 Future Roadmap
-- [ ] Voice-to-Text integration for verbal mock interviews.
-- [ ] Interactive Kanban board for study roadmaps.
-- [ ] WebRTC peer-to-peer mock interviews.
-
 ## 📄 License
 This project is licensed under the MIT License.
