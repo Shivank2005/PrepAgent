@@ -23,8 +23,8 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     await init_db()
-    os.makedirs("uploads/avatars", exist_ok=True)
 
+os.makedirs("uploads/avatars", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
