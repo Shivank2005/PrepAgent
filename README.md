@@ -18,8 +18,7 @@
 
 **PrepAgent AI** is an advanced, autonomous multi-agent system designed to simulate grueling technical interviews at top-tier tech companies (Meta, Google, Netflix). By uploading your resume, the platform extracts your experience and generates a highly personalized, week-by-week study roadmap and subjects you to hyper-realistic mock interviews.
 
-*(Replace with screenshot of Landing Page)*
-`![Landing Page Placeholder](docs/landing-page.png)`
+![Landing Page Placeholder](docs/landing-page.png)
 
 ## ✨ Core Features
 
@@ -29,8 +28,7 @@
 4. **Resume Parsing & Gap Analysis**: Extracts your experience and identifies weaknesses against top company rubrics using our advanced RAG pipeline.
 5. **Live Streaming Chat**: Watch the AI reasoning and feedback via ultra-fast Server-Sent Events (powered by Groq).
 
-*(Replace with screenshot of Dashboard)*
-`![Dashboard Placeholder](docs/dashboard.png)`
+![Dashboard Placeholder](docs/dashboard.png)
 
 ---
 
