@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy.orm.attributes import flag_modified
 from pydantic import BaseModel
 from app.db.database import get_db, Session as DBSession
 from app.agents.tools import evaluate_answer_tool
@@ -86,6 +88,12 @@ async def evaluate_answer(req: AnswerRequest, db: AsyncSession = Depends(get_db)
     new_score = final_state.get("readiness_score", s.readiness_score)
     s.readiness_score = new_score
     s.current_question_index = final_state.get("current_question_index", s.current_question_index)
+    question["candidate_answer"] = req.answer
+    question["feedback"] = feedback
+    
+    # Update mock_questions to trigger sqlalchemy JSON detection
+    s.mock_questions = questions
+    flag_modified(s, "mock_questions")
     
     # Save the interaction to chat history
     db.add(ChatMessage(session_id=req.session_id, role="user", content=req.answer))
@@ -155,15 +163,32 @@ async def complete_session(session_id: str, req: CompleteRequest, db: AsyncSessi
     s.status = "COMPLETED"
     s.time_taken = req.time_taken
     
-    # Scale the final score based on the percentage of questions actually completed
-    if not s.current_question_index or s.current_question_index == 0:
-        s.final_score = 0.0
+    # Calculate final score by summing the points earned during the test (max 10 per question)
+    calculated_score = 0.0
+    answered_count = 0
+    total_questions = len(s.mock_questions) if s.mock_questions else 1
+    
+    if s.mock_questions:
+        for q in s.mock_questions:
+            ans = q.get("candidate_answer", "")
+            if not ans or ans == "No answer provided.":
+                continue
+                
+            answered_count += 1
+            feedback = q.get("feedback", {})
+            delta = feedback.get("score_delta", 0)
+            calculated_score += delta
+            
+    # Calculate accuracy based on how well they did on the questions they actually attempted (max 10 points per question)
+    if answered_count > 0:
+        max_possible_for_answered = 10.0 * answered_count
+        s.accuracy = min(100.0, max(0.0, (calculated_score / max_possible_for_answered) * 100.0))
     else:
-        total_questions = len(s.mock_questions) if s.mock_questions else 1
-        completion_ratio = min(1.0, s.current_question_index / total_questions)
-        s.final_score = (s.readiness_score or 0.0) * completion_ratio
+        s.accuracy = 0.0
         
-    s.accuracy = min(100.0, max(0.0, s.final_score))
+    # Final score out of 100 is based on their accuracy, scaled by how much of the test they completed
+    completion_ratio = min(1.0, answered_count / total_questions)
+    s.final_score = min(100.0, max(0.0, s.accuracy * completion_ratio))
     
     await db.commit()
     return {"status": "success", "message": "Session permanently completed and locked."}

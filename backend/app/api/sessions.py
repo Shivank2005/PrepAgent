@@ -248,14 +248,16 @@ async def generate_llm_report(session_id: str, db: AsyncSession = Depends(get_db
     if session.mock_questions:
         for idx, q in enumerate(session.mock_questions):
             q_text = q.get("question", "")
-            candidate_answer = "No answer provided."
-            # Find the user's response to this question in the chat history
-            for m_idx, m in enumerate(messages):
-                if m.role == "assistant" and q_text and q_text[:50] in m.content:
-                    if m_idx + 1 < len(messages) and messages[m_idx + 1].role == "user":
-                        candidate_answer = messages[m_idx + 1].content
-                    break
-
+            candidate_answer = q.get("candidate_answer", "No answer provided.")
+            
+            # Fallback for old sessions that didn't save candidate_answer directly
+            if candidate_answer == "No answer provided.":
+                for m_idx, m in enumerate(messages):
+                    if m.role == "assistant" and q_text and q_text[:50] in m.content:
+                        if m_idx + 1 < len(messages) and messages[m_idx + 1].role == "user":
+                            candidate_answer = messages[m_idx + 1].content
+                        break
+            
             answer_type = "code" if any(kw in candidate_answer for kw in ["{", "class ", "def ", "public ", "import "]) else "text"
 
             questions.append({
@@ -273,6 +275,8 @@ async def generate_llm_report(session_id: str, db: AsyncSession = Depends(get_db
         "target_role": session.role,
         "date": session.created_at.isoformat() if session.created_at else datetime.utcnow().isoformat(),
         "time_taken": session.time_taken,
+        "final_score": session.final_score,
+        "accuracy": session.accuracy,
         "questions": questions
     }
 

@@ -199,7 +199,8 @@ export default function DashboardPage() {
     return { name: `S${i + 1}`, val: s, label, attempts: sessionHistory.length };
   });
 
-  const recentSessionsData = sessionHistory.map((s: any) => {
+  const visibleHistory = sessionHistory.filter((s: any) => (s.time_taken || 0) > 0 || (s.current_question_index || 0) > 0 || s.status === "COMPLETED");
+  const recentSessionsData = visibleHistory.map((s: any) => {
     const timeTaken = s.time_taken || 0;
     const durStr = timeTaken > 0 
       ? (timeTaken < 60 ? `${timeTaken} s` : `${Math.floor(timeTaken / 60)}m ${timeTaken % 60}s`)
@@ -309,7 +310,7 @@ export default function DashboardPage() {
           ) : (
             <Link href="/interview" className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(139,92,246,0.3)]">
                <div className="w-2 h-2 rounded-full bg-white/90 animate-pulse" />
-               Resume Mock
+               {(session.time_taken === 0 || !session.time_taken) && (session.current_question_index === 0 || !session.current_question_index) ? "Start Mock Interview" : "Resume Mock"}
             </Link>
           )}
           
@@ -635,7 +636,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between p-6 border-b border-[#2d2c41]">
             <div>
               <h2 className="text-lg font-bold text-white tracking-tight">Recent Mock Sessions</h2>
-              <div className="text-sm text-[#5c5875]">{sessionHistory.length} total sessions recorded</div>
+              <div className="text-sm text-[#5c5875]">{visibleHistory.length} total sessions recorded</div>
             </div>
             <Link href="/setup" className="text-[#8b5cf6] text-sm font-medium hover:text-[#a855f7] flex items-center gap-1 transition-colors">
               New session <ChevronRight size={16} />
@@ -655,13 +656,15 @@ export default function DashboardPage() {
             </thead>
             <tbody className="divide-y divide-[#2d2c41]">
               {recentSessionsData.map((row: any, i: number) => {
-                const isCurrent = session.session_id === sessionHistory[i].id;
-                const s = sessionHistory[i];
+                const s = visibleHistory[i];
+                const isCurrent = session.session_id === s.id;
                 return (
                   <tr 
                     key={i} 
                     onClick={() => {
-                      if (!isCurrent) {
+                      if (s.status === "COMPLETED") {
+                        router.push(`/result/${s.id}`);
+                      } else if (!isCurrent) {
                         localStorage.setItem("prepagent_active_session", s.id);
                         window.location.reload();
                       }

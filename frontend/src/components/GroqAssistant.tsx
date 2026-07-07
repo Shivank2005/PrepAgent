@@ -5,6 +5,7 @@ import { MessageSquare, X, Send, Bot, User, Loader2, Sparkles } from "lucide-rea
 import { getActiveSessionId } from "@/lib/store";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
+import { usePathname } from "next/navigation";
 
 type Message = {
   role: "user" | "assistant";
@@ -12,6 +13,7 @@ type Message = {
 };
 
 export default function GroqAssistant() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: "Hi! I'm your PrepAgent Study Assistant. How can I help you prep today?" }
@@ -122,6 +124,10 @@ export default function GroqAssistant() {
       setIsLoading(false);
     }
   };
+
+  if (pathname === "/" || pathname === "/login" || pathname === "/signup") {
+    return null;
+  }
 
   return (
     <>

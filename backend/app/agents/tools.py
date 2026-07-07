@@ -165,7 +165,7 @@ Previous turns history:
 Evaluate the latest answer and return JSON:
 {{
   "is_followup": bool,
-  "score_delta": int (-5 to +15, 0 if is_followup is true),
+  "score_delta": int (0 to 10, 0 if is_followup is true),
   "score_label": "Excellent" | "Good" | "Average" | "Weak" (empty if is_followup is true),
   "feedback": "Your follow-up question string" if is_followup is true, else "Final evaluation summary",
   "strengths": [string] (empty if is_followup is true),
@@ -185,7 +185,7 @@ Return ONLY valid JSON."""),
     })
     return robust_parse_json(result.content, {
         "is_followup": False,
-        "score_delta": 5,
+        "score_delta": 7,
         "score_label": "Good",
         "feedback": "Your answer covered the key points. Work on adding more technical depth.",
         "strengths": ["Clear structure"],

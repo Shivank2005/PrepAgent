@@ -23,9 +23,9 @@ from datetime import datetime
 
 # ─────────────────────────── CSS ───────────────────────────
 REPORT_CSS = """
+
 /* ──────────────────────────────────────────────
    PAGE SETUP — @page for print/WeasyPrint only
-   html2pdf.js uses its own `margin` option
    ────────────────────────────────────────────── */
 @page {
   size: A4 portrait;
@@ -33,238 +33,216 @@ REPORT_CSS = """
 }
 
 /* ── GLOBAL RESET ── */
+body {
+  background-color: #ffffff !important;
+}
+
 .report-wrapper {
   font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
-  color: #1c2536;
+  color: #334155;
   margin: 0; padding: 0;
   font-size: 11.5px; line-height: 1.55;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
   background-color: #ffffff;
   text-align: left;
   width: 100%;
+  min-height: 100vh;
 }
 .report-wrapper * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ──────────────────────────────────────────────
-   PAGE-BREAK MARKER
-   html2pdf.js will slice the canvas BEFORE any
-   element carrying this class and reposition
-   content to the top of the next page.
-   ────────────────────────────────────────────── */
 .page-break {
-  /* No height, no visual footprint — just a marker */
   display: block;
   height: 0;
   page-break-before: always;
   break-before: page;
 }
 
-/* ──────────────────────────────────────────────
-   COVER PAGE — unique class, NEVER reused
-   Uses a min-height to fill the first page.
-   ────────────────────────────────────────────── */
 .cover-page {
-  height: 1122px; /* Safely under the 1122.5px A4 height to prevent a blank overflow page */
+  height: 1122px; 
   box-sizing: border-box;
-  background: linear-gradient(160deg, #0b1230 0%, #16215a 55%, #1c2b74 100%);
-  color: #fff; padding: 140px 60px 50px 60px; position: relative;
+  background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 55%, #e2e8f0 100%);
+  color: #0f172a; padding: 140px 60px 50px 60px; position: relative;
 }
 .logo { font-size: 20px; font-weight: 700; }
-.logo-prep { color: #fff; }
-.logo-agent { color: #6f8cff; }
+.logo-prep { color: #0f172a; }
+.logo-agent { color: #0ea5e9; }
 .cover-icon {
-  width: 48px; height: 48px; background: rgba(47,75,214,0.35);
+  width: 48px; height: 48px; background: rgba(14,165,233,0.15);
   border-radius: 12px; display: flex; align-items: center; justify-content: center;
   margin-top: 60px; margin-bottom: 10px;
 }
-.cover-icon-bar { width: 22px; height: 3px; background: #8fa8ff; border-radius: 2px; }
+.cover-icon-bar { width: 22px; height: 3px; background: #0ea5e9; border-radius: 2px; }
 h1.cover-title {
   font-size: 38px; font-weight: 800; line-height: 1.15;
   margin: 20px 0 16px 0; max-width: 460px;
 }
 .cover-sub {
-  font-size: 13.5px; color: #b7c1e0; max-width: 420px; margin-bottom: 50px; line-height: 1.6;
+  font-size: 13.5px; color: #475569; max-width: 420px; margin-bottom: 50px; line-height: 1.6;
 }
 .cover-card {
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+  background: #ffffff; border: 1px solid #cbd5e1;
   border-radius: 14px; padding: 26px 30px; max-width: 100%;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 .cover-row { display: flex; gap: 40px; margin-bottom: 14px; }
 .cover-label {
-  font-size: 8.5px; letter-spacing: 1.5px; color: #8fa0d0;
+  font-size: 8.5px; letter-spacing: 1.5px; color: #64748b;
   font-weight: 700; margin-bottom: 6px; text-transform: uppercase;
 }
-.cover-value { font-size: 15px; font-weight: 700; color: #fff; }
-.cover-divider { border-top: 1px solid rgba(255,255,255,0.15); margin: 6px 0 14px 0; }
+.cover-value { font-size: 15px; font-weight: 700; color: #0f172a; }
+.cover-divider { border-top: 1px solid #e2e8f0; margin: 6px 0 14px 0; }
 .cover-footer {
   margin-top: 80px;
-  text-align: center; font-size: 7.5px; letter-spacing: 2px; color: #6070a0;
+  text-align: center; font-size: 7.5px; letter-spacing: 2px; color: #94a3b8;
   text-transform: uppercase;
 }
 
-/* ──────────────────────────────────────────────
-   TABLE OF CONTENTS — distinct class from cover
-   Normal block flow, content starts at top.
-   ────────────────────────────────────────────── */
 .toc-section {
   padding: 50px 50px 20px 50px;
   background: #ffffff;
   width: 100%;
   box-sizing: border-box;
 }
-.toc-title { font-size: 26px; font-weight: 800; margin: 0 0 30px 0; color: #1c2536; }
+.toc-title { font-size: 26px; font-weight: 800; margin: 0 0 30px 0; color: #0f172a; }
 .toc-item {
   display: flex; gap: 14px; align-items: center;
-  padding: 16px 12px; border-bottom: 1px dashed #d6dae4;
-  background: rgba(234,240,254,0.35); border-radius: 6px; margin-bottom: 4px;
+  padding: 16px 12px; border-bottom: 1px dashed #cbd5e1;
+  background: #f8fafc; border-radius: 6px; margin-bottom: 4px;
 }
-.toc-num { color: #2f4bd6; font-weight: 700; font-size: 13px; min-width: 22px; }
-.toc-label { font-size: 14px; font-weight: 600; color: #222c42; }
+.toc-num { color: #6366f1; font-weight: 700; font-size: 13px; min-width: 22px; }
+.toc-label { font-size: 14px; font-weight: 600; color: #1e293b; }
 
-/* ──────────────────────────────────────────────
-   CHAPTER SECTIONS — distinct class from cover
-   Normal block flow, content starts at top.
-   Page breaks are handled by a preceding
-   `.page-break` marker div, NOT by this class.
-   ────────────────────────────────────────────── */
 .content-section {
   padding: 50px 50px 20px 50px;
-  background: #fff;
+  background: #ffffff;
   width: 100%;
   box-sizing: border-box;
 }
 .chapter-tag {
-  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #2f4bd6;
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #6366f1;
   margin-bottom: 8px; text-transform: uppercase;
 }
-h2.chapter-title { font-size: 24px; font-weight: 800; margin: 0 0 22px 0; color: #1c2536; }
-h3.section-title { font-size: 15px; font-weight: 700; margin: 26px 0 10px 0; color: #1c2536; }
+h2.chapter-title { font-size: 24px; font-weight: 800; margin: 0 0 22px 0; color: #0f172a; }
+h3.section-title { font-size: 15px; font-weight: 700; margin: 26px 0 10px 0; color: #0f172a; }
 
-/* ── KEY TAKEAWAY CALLOUT ── */
 .callout {
-  background: #eaf0fe; border-left: 4px solid #2f4bd6; border-radius: 6px;
+  background: #f1f5f9; border-left: 4px solid #3b82f6; border-radius: 6px;
   padding: 16px 18px; margin-bottom: 26px;
   page-break-inside: avoid; break-inside: avoid;
 }
-.callout-label { font-size: 12px; font-weight: 700; color: #24327a; margin-bottom: 6px; }
-.callout-text { font-size: 11px; color: #2a3658; line-height: 1.65; }
+.callout-label { font-size: 12px; font-weight: 700; color: #2563eb; margin-bottom: 6px; }
+.callout-text { font-size: 11px; color: #334155; line-height: 1.65; }
 
-/* ── METRIC CARDS ── */
 .metric-row {
   display: flex; gap: 16px; margin-bottom: 16px; width: 100%;
   page-break-inside: avoid; break-inside: avoid;
 }
 .metric-card {
-  flex: 1; border: 1px solid #e1e4ec; border-radius: 10px;
-  padding: 20px 14px; text-align: center; background: #fff;
+  flex: 1; border: 1px solid #cbd5e1; border-radius: 10px;
+  padding: 20px 14px; text-align: center; background: #f8fafc;
   page-break-inside: avoid; break-inside: avoid;
 }
 .metric-label {
-  font-size: 9px; letter-spacing: 1px; color: #8189a0;
+  font-size: 9px; letter-spacing: 1px; color: #64748b;
   font-weight: 700; margin-bottom: 10px; text-transform: uppercase;
 }
-.metric-value { font-size: 28px; font-weight: 800; color: #1c2536; }
-.metric-sub { font-size: 14px; font-weight: 400; color: #8189a0; }
-.metric-note { font-size: 9.5px; color: #8189a0; font-style: italic; margin-top: 6px; }
-.dim-note { font-size: 9px; color: #8189a0; font-style: italic; margin: 6px 0 16px 0; }
+.metric-value { font-size: 28px; font-weight: 800; color: #0f172a; }
+.metric-sub { font-size: 14px; font-weight: 400; color: #64748b; }
+.metric-note { font-size: 9.5px; color: #64748b; font-style: italic; margin-top: 6px; }
+.dim-note { font-size: 9px; color: #64748b; font-style: italic; margin: 6px 0 16px 0; }
 
-/* ── DIMENSION TABLE ── */
 table.dim-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
 table.dim-table th {
-  background: #f0f2f8; text-align: left; font-size: 9.5px;
-  color: #5a6178; padding: 8px 10px; font-weight: 700;
+  background: #f1f5f9; text-align: left; font-size: 9.5px;
+  color: #475569; padding: 8px 10px; font-weight: 700;
 }
-table.dim-table td { padding: 9px 10px; font-size: 11px; border-bottom: 1px solid #edeff5; }
+table.dim-table td { padding: 9px 10px; font-size: 11px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
 .bar-bg {
-  background: #eceef4; border-radius: 4px; height: 8px; width: 140px;
+  background: #e2e8f0; border-radius: 4px; height: 8px; width: 140px;
   overflow: hidden; display: inline-block; vertical-align: middle;
 }
 .bar-fill { height: 8px; border-radius: 4px; display: block; }
-.bar-green { background: #227a4a; }
-.bar-amber { background: #b3760f; }
-.bar-red   { background: #b23a3a; }
+.bar-green { background: #10b981; }
+.bar-amber { background: #f59e0b; }
+.bar-red   { background: #ef4444; }
 
-/* ── GROWTH OPPORTUNITY CARDS ── */
 .growth-card {
-  border: 1px solid #e1e4ec; border-radius: 10px; padding: 16px 18px;
-  margin-bottom: 14px; background: #fff; width: 100%;
+  border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px 18px;
+  margin-bottom: 14px; background: #ffffff; width: 100%;
   page-break-inside: avoid; break-inside: avoid;
 }
-.growth-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; color: #1c2536; }
-.growth-desc { font-size: 10.5px; color: #333f5c; line-height: 1.6; }
+.growth-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; color: #0f172a; }
+.growth-desc { font-size: 10.5px; color: #475569; line-height: 1.6; }
 .growth-tag {
   display: inline-block; font-size: 8.5px; font-weight: 700; letter-spacing: 0.5px;
   padding: 2px 8px; border-radius: 10px; margin-bottom: 8px; text-transform: uppercase;
 }
-.tag-high { background: #fdeaea; color: #b23a3a; }
-.tag-med  { background: #fef3e0; color: #b3760f; }
+.tag-high { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.tag-med  { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
 
-/* ── STUDY PLAN ── */
 .plan-block {
   page-break-inside: avoid; break-inside: avoid;
   margin-bottom: 8px;
 }
 table.plan-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
 table.plan-table th {
-  background: #131a2c; color: #fff; text-align: left;
+  background: #f1f5f9; color: #1e293b; text-align: left;
   padding: 9px 10px; font-size: 10px; font-weight: 600;
 }
 table.plan-table td {
-  padding: 9px 10px; font-size: 10.5px; border-bottom: 1px solid #edeff5;
-  vertical-align: top; color: #333f5c;
+  padding: 9px 10px; font-size: 10.5px; border-bottom: 1px solid #e2e8f0;
+  vertical-align: top; color: #334155;
 }
-table.plan-table tr:nth-child(even) td { background: #f9fafc; }
+table.plan-table tr:nth-child(even) td { background: #f8fafc; }
 
-/* ── Q&A ANALYSIS CARDS ── */
 .qa-card {
-  /* Use box-shadow instead of border so we can use border-top as a transparent margin */
-  box-shadow: 0 0 0 1px #e1e4ec; 
+  box-shadow: 0 0 0 1px #cbd5e1; 
   border-radius: 10px; 
   margin-bottom: 0px;
-  /* This transparent border acts as a top margin that html2pdf respects when pushing to a new page */
   border-top: 40px solid transparent;
   background-clip: padding-box;
+  background-color: #ffffff;
   overflow: hidden; width: 100%;
-  page-break-inside: avoid; break-inside: avoid;
 }
 .qa-head {
-  background: #131a2c; padding: 10px 16px; display: flex;
-  justify-content: space-between; align-items: center;
+  background: #f8fafc; padding: 10px 16px; display: flex;
+  justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0;
 }
-.qa-title { font-size: 12px; font-weight: 700; color: #fff; }
+.qa-title { font-size: 12px; font-weight: 700; color: #0f172a; }
 .qa-score {
-  font-size: 12px; font-weight: 800; padding: 2px 10px; border-radius: 10px;
-  background: rgba(255,255,255,0.12);
+  font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 12px;
+  background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; line-height: 1; color: #0f172a;
 }
-.score-good { color: #8fe3ae; }
-.score-mid  { color: #f5c876; }
-.score-low  { color: #f29a9a; }
+.score-good { color: #059669; }
+.score-mid  { color: #d97706; }
+.score-low  { color: #dc2626; }
 .qa-body { padding: 14px 16px; }
 .qa-sublabel {
-  font-size: 9px; letter-spacing: 1px; font-weight: 700; color: #8189a0;
+  font-size: 9px; letter-spacing: 1px; font-weight: 700; color: #64748b;
   margin: 12px 0 6px 0; text-transform: uppercase;
 }
 .qa-sublabel:first-child { margin-top: 0; }
-.qa-question-text { font-size: 11px; font-style: italic; margin: 0; color: #333f5c; }
-.qa-answer-text { font-size: 10.8px; color: #333f5c; margin: 0; line-height: 1.6; }
+.qa-question-text { font-size: 11px; font-style: italic; margin: 0; color: #334155; }
+.qa-answer-text { font-size: 10.8px; color: #1e293b; margin: 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; }
 pre.qa-code {
-  background: #131a2c; color: #d8dcea; border-radius: 6px; padding: 10px 12px;
+  background: #f8fafc; color: #334155; border-radius: 6px; padding: 10px 12px;
+  border: 1px solid #cbd5e1;
   font-family: 'Courier New', monospace; font-size: 8.3px; line-height: 1.45;
   white-space: pre-wrap; word-wrap: break-word; margin: 0;
 }
 .sw-grid { display: flex; gap: 14px; margin-top: 4px; }
 .sw-col { flex: 1; }
-.sw-col.strengths .qa-sublabel { color: #227a4a; }
-.sw-col.weaknesses .qa-sublabel { color: #b23a3a; }
+.sw-col.strengths .qa-sublabel { color: #059669; }
+.sw-col.weaknesses .qa-sublabel { color: #dc2626; }
 .sw-col ul { margin: 0; padding-left: 15px; }
-.sw-col li { font-size: 10.3px; color: #333f5c; margin-bottom: 4px; line-height: 1.5; }
+.sw-col li { font-size: 10.3px; color: #334155; margin-bottom: 4px; line-height: 1.5; }
 .rec-box {
-  background: #eaf0fe; border-radius: 6px; padding: 10px 14px; margin-top: 12px;
+  background: #f3e8ff; border-radius: 6px; padding: 10px 14px; margin-top: 12px;
   page-break-inside: avoid; break-inside: avoid;
 }
-.rec-box .qa-sublabel { color: #24327a; margin-top: 0; }
+.rec-box .qa-sublabel { color: #7e22ce; margin-top: 0; }
 .rec-box ul { margin: 0; padding-left: 15px; }
-.rec-box li { font-size: 10.3px; color: #24327a; margin-bottom: 4px; line-height: 1.5; }
+.rec-box li { font-size: 10.3px; color: #7e22ce; margin-bottom: 4px; line-height: 1.5; }
 
 /* ── TRANSCRIPT ── */
 .transcript-turn {
@@ -272,25 +250,25 @@ pre.qa-code {
   page-break-inside: avoid; break-inside: avoid;
 }
 .turn-label {
-  font-size: 10px; font-weight: 700; color: #5a6178;
+  font-size: 10px; font-weight: 700; color: #64748b;
   margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
 }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.dot-candidate { background: #2f4bd6; }
-.dot-interviewer { background: #227a4a; }
+.dot-candidate { background: #8b5cf6; }
+.dot-interviewer { background: #10b981; }
 .turn-box {
-  background: #f9fafc; border: 1px solid #edeff5; border-radius: 6px;
-  padding: 10px 14px; font-size: 10.5px; color: #333f5c; line-height: 1.6;
+  background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px;
+  padding: 10px 14px; font-size: 10.5px; color: #334155; line-height: 1.6;
 }
 .turn-box.interviewer {
-  background: #eaf0fe; border-color: #d0d9f5;
+  background: #f0fdf4; border-color: #bbf7d0;
 }
 
-/* ── PAGE FOOTER ── */
 .page-footer {
-  text-align: center; font-size: 7.5px; letter-spacing: 2px; color: #9aa5b8;
+  text-align: center; font-size: 7.5px; letter-spacing: 2px; color: #94a3b8;
   padding-top: 30px; text-transform: uppercase;
 }
+
 """
 
 
@@ -437,8 +415,8 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
 </div>"""
 
     # ─── CHAPTER 01: EXECUTIVE SUMMARY ───
-    overall = analysis.get("overall_score", 0)
-    accuracy = analysis.get("accuracy_pct", 0)
+    overall = int(session_data.get("final_score", 0)) if session_data.get("final_score") is not None else analysis.get("overall_score", 0)
+    accuracy = int(session_data.get("accuracy", 0)) if session_data.get("accuracy") is not None else analysis.get("accuracy_pct", 0)
     key_takeaway = _esc(analysis.get("key_takeaway", "No analysis available."))
     time_taken = session_data.get("time_taken")
 
@@ -458,12 +436,24 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
         <div class="metric-note">Time tracking data was not available for this session.</div>
       </div>"""
 
+    # Scale dimension scores so they don't exceed the penalized overall score
+    llm_overall = analysis.get("overall_score")
+    scale_factor = 1.0
+    if llm_overall and llm_overall > 0 and overall > 0:
+        scale_factor = overall / llm_overall
+    elif overall == 0:
+        scale_factor = 0.0
+
     # Dimension rows
     dimensions = analysis.get("dimensions", [])
     dim_rows = ""
     for dim in dimensions:
         name = _esc(dim.get("name", ""))
-        score = dim.get("score", 0)
+        raw_score = dim.get("score", 0)
+        # Apply scaling factor
+        score = int(round(raw_score * scale_factor))
+        # Ensure it never strictly exceeds the overall score to prevent visual confusion
+        score = min(score, overall)
         bar_cls = _bar_color(score)
         pct = min(score, 100)
         dim_rows += f"""

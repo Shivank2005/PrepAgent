@@ -124,7 +124,7 @@ export default function ResultPage() {
 
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen w-full bg-bg0 p-8">
+    <div className="flex flex-col items-center min-h-screen w-full bg-bg0 py-16 px-8">
       <div className="max-w-3xl w-full animate-fade-in flex flex-col items-center">
         <div className="w-24 h-24 bg-accent/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(6,182,212,0.2)]">
           <PartyPopper size={40} className="text-accent" />
@@ -135,32 +135,76 @@ export default function ResultPage() {
           You've successfully finished your {session.company} preparation test.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-12">
-          {/* Time Taken */}
-          <div className="glass-card bg-[#12121a]/80 border border-[#2d2c41] rounded-2xl p-6 flex flex-col items-center text-center">
-            <div className="w-12 h-12 rounded-full bg-[#f59e0b]/10 flex items-center justify-center mb-4 text-[#f59e0b]">
-              <Clock size={24} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-8">
+          {/* Overall Score */}
+          <div className="bg-[#101016] border border-[#232338] rounded-xl p-8 flex flex-col items-center justify-center min-h-[140px] shadow-lg">
+            <div className="text-[#8a8a9e] text-xs font-bold uppercase tracking-[0.2em] mb-4">Overall Score</div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-5xl font-black text-white">{(session.final_score ?? session.readiness_score ?? 10).toFixed(0)}</span>
+              <span className="text-xl font-medium text-[#8a8a9e]">/100</span>
             </div>
-            <div className="text-[#a5a0c4] text-sm font-bold uppercase tracking-wider mb-2">Time Taken</div>
-            <div className="text-4xl font-bold text-white">{timeStr}</div>
-          </div>
-
-          {/* Marks Scored */}
-          <div className="glass-card bg-[#12121a]/80 border border-[#2d2c41] rounded-2xl p-6 flex flex-col items-center text-center">
-            <div className="w-12 h-12 rounded-full bg-[#10b981]/10 flex items-center justify-center mb-4 text-[#10b981]">
-              <Trophy size={24} />
-            </div>
-            <div className="text-[#a5a0c4] text-sm font-bold uppercase tracking-wider mb-2">Marks Scored</div>
-            <div className="text-4xl font-bold text-white">{(session.final_score ?? session.readiness_score ?? 0).toFixed(0)}</div>
           </div>
 
           {/* Accuracy */}
-          <div className="glass-card bg-[#12121a]/80 border border-[#2d2c41] rounded-2xl p-6 flex flex-col items-center text-center">
-            <div className="w-12 h-12 rounded-full bg-[#8b5cf6]/10 flex items-center justify-center mb-4 text-[#8b5cf6]">
-              <Target size={24} />
+          <div className="bg-[#101016] border border-[#232338] rounded-xl p-8 flex flex-col items-center justify-center min-h-[140px] shadow-lg">
+            <div className="text-[#8a8a9e] text-xs font-bold uppercase tracking-[0.2em] mb-4">Accuracy %</div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-5xl font-black text-white">{(session.accuracy ?? session.readiness_score ?? 100).toFixed(0)}</span>
+              <span className="text-3xl font-medium text-[#8a8a9e]">%</span>
             </div>
-            <div className="text-[#a5a0c4] text-sm font-bold uppercase tracking-wider mb-2">Accuracy</div>
-            <div className="text-4xl font-bold text-white">{(session.accuracy ?? session.readiness_score ?? 0).toFixed(0)}%</div>
+          </div>
+
+          {/* Time Taken */}
+          <div className="bg-[#101016] border border-[#232338] rounded-xl p-8 flex flex-col items-center justify-center min-h-[140px] shadow-lg">
+            <div className="text-[#8a8a9e] text-xs font-bold uppercase tracking-[0.2em] mb-4">Time Taken</div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-5xl font-black text-white">{mins > 0 ? `${mins}` : '0'}</span>
+              <span className="text-xl font-medium text-[#8a8a9e] mr-1">m</span>
+              <span className="text-5xl font-black text-white">{secs}</span>
+              <span className="text-xl font-medium text-[#8a8a9e]">s</span>
+            </div>
+          </div>
+        </div>
+
+
+        <div className="w-full mb-12">
+          <h2 className="text-2xl font-bold text-white mb-6 text-left">Score by dimension</h2>
+          <div className="w-full bg-[#101016] border border-[#232338] rounded-xl overflow-hidden shadow-lg">
+            <table className="w-full text-left">
+              <thead className="bg-[#14141d] border-b border-[#232338]">
+                <tr>
+                  <th className="py-4 px-6 text-[#b4b4c7] font-semibold text-sm">Dimension</th>
+                  <th className="py-4 px-6 text-[#b4b4c7] font-semibold text-sm">Score</th>
+                  <th className="py-4 px-6 text-[#b4b4c7] font-semibold text-sm w-1/2"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#232338]">
+                {[
+                  { label: "Technical (DSA)", score: session?.dimension_scores?.technical ?? Math.round(session?.final_score ?? session?.readiness_score ?? 10) },
+                  { label: "Behavioral", score: session?.dimension_scores?.behavioral ?? Math.round(session?.final_score ?? session?.readiness_score ?? 10) },
+                  { label: "System Design", score: session?.dimension_scores?.system_design ?? Math.round(session?.final_score ?? session?.readiness_score ?? 10) },
+                ].map((dim, i) => {
+                  let color = "#ef4444"; // red
+                  if (dim.score >= 80) color = "#22c55e"; // green
+                  else if (dim.score >= 50) color = "#eab308"; // yellow
+                  
+                  return (
+                    <tr key={i} className="hover:bg-[#151520] transition-colors">
+                      <td className="py-4 px-6 text-white font-medium">{dim.label}</td>
+                      <td className="py-4 px-6 text-white font-medium">{dim.score} / 100</td>
+                      <td className="py-4 px-6">
+                        <div className="h-2.5 w-full bg-[#232338] rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full transition-all duration-1000"
+                            style={{ width: `${dim.score}%`, backgroundColor: color }}
+                          ></div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
