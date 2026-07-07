@@ -157,6 +157,23 @@ function SetupContent() {
         <p className="text-[#a5a0c4] text-sm">Choose the company you're preparing for. Our RAG corpus has recency-weighted interview experiences for each.</p>
       </div>
 
+      <div className="mb-8">
+        <label className="block text-sm font-bold text-white mb-2">Custom Company</label>
+        <p className="text-[#a5a0c4] text-xs mb-3">Don't see your target company? Type it below.</p>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Building2 size={18} className="text-[#5c5875]" />
+          </div>
+          <input 
+            type="text"
+            placeholder="e.g. Stripe, Airbnb, Netflix..."
+            value={selectedCompany || ""}
+            onChange={(e) => setSelectedCompany(e.target.value)}
+            className="w-full bg-[#12121a] border border-[#2d2c41] rounded-xl py-3.5 pl-11 pr-4 text-white focus:outline-none focus:border-accent transition-all placeholder:text-[#5c5875]"
+          />
+        </div>
+      </div>
+
       <div className="mb-4">
         <h3 className="text-xs font-bold text-accent uppercase tracking-wider mb-3">Curated Interview Packs</h3>
       </div>

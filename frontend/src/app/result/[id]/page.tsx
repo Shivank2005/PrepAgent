@@ -62,13 +62,23 @@ export default function ResultPage() {
       container.style.width = "794px";
       container.style.backgroundColor = "#ffffff";
       
+      // Do NOT append to document.body! html2pdf.js will create an isolated iframe.
+      // This prevents the blank page bugs caused by html2canvas interacting with the Next.js DOM.
+
       const opt = {
-        margin:       15,
+        // IMPORTANT: margin MUST be 0! 
+        // If margin > 0, html2pdf's pagebreak algorithm calculates the wrong page height
+        // and pushes elements to the bottom of the page instead of the next page.
+        margin:       0,
         filename:     `PrepAgent-Report-${session?.company || "Session"}.pdf`,
         image:        { type: 'jpeg', quality: 1.0 },
         html2canvas:  { scale: 2, useCORS: true, width: 794, windowWidth: 794 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'], avoid: ['.qa-card'] }
+        // Use css mode so it respects our .page-break class and page-break-inside rules
+        pagebreak:    { 
+          mode: 'css', 
+          avoid: ['.qa-card', '.growth-card', '.metric-row', '.callout', '.transcript-turn', '.plan-block'] 
+        }
       };
       
       await html2pdf().set(opt).from(container).save();

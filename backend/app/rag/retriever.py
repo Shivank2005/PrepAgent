@@ -121,10 +121,42 @@ async def retrieve_interview_experiences(
                 "topics": topics,
                 "distance": match.score, # Pinecone returns similarity score
             })
+            
+        if len(docs) < 3:
+            print(f"Insufficient local data for {company}, failing back to live web search...")
+            web_docs = await fetch_real_questions_from_web(company, role)
+            docs.extend(web_docs)
+            
         return docs
     except Exception as e:
         print(f"Pinecone retrieval error: {e}")
         return []
+
+async def fetch_real_questions_from_web(company: str, role: str) -> List[dict]:
+    docs = []
+    try:
+        from duckduckgo_search import AsyncDDGS
+        queries = [
+            f"{company} {role} interview questions site:leetcode.com/discuss",
+            f"{company} {role} interview questions site:glassdoor.com",
+            f"{company} {role} interview experience site:reddit.com"
+        ]
+        async with AsyncDDGS() as ddgs:
+            for query in queries:
+                results = await ddgs.atext(query, max_results=3)
+                for r in results:
+                    docs.append({
+                        "text": f"Real Question from Web - Source: {r.get('title', '')}\nSnippet: {r.get('body', '')}",
+                        "company": company,
+                        "role": role,
+                        "year": 2024,
+                        "topics": ["Web Search"],
+                        "distance": 1.0,
+                        "url": r.get('href', '')
+                    })
+    except Exception as e:
+        print(f"Web search fallback error: {e}")
+    return docs
 
 
 async def add_interview_experience(

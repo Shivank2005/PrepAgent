@@ -22,6 +22,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     name = Column(String)
     hashed_password = Column(String)
+    preferences = Column(JSON, default=dict)
     created_at = Column(DateTime, server_default=func.now())
 
 class Session(Base):
@@ -68,6 +69,7 @@ async def init_db():
             await conn.execute(text("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS time_taken INTEGER DEFAULT 0;"))
             await conn.execute(text("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS accuracy FLOAT DEFAULT 0.0;"))
             await conn.execute(text("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS final_score FLOAT DEFAULT 0.0;"))
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSON DEFAULT '{}'::json;"))
         except Exception as e:
             print(f"Migration error (tolerable if db is fresh): {e}")
 

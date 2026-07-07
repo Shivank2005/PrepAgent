@@ -1,15 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from app.db.database import get_db, Session as DBSession, ChatMessage
+from sqlalchemy.orm.attributes import flag_modified
+from app.db.database import get_db, Session as DBSession, ChatMessage, AsyncSessionLocal
 from collections import Counter
 import os
 import json
 from datetime import datetime, timedelta
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
+from pydantic import BaseModel
+from app.agents.tools import generate_study_plan_tool
 
 router = APIRouter()
+
+class AddGapRequest(BaseModel):
+    gap: str
 
 
 def serialize_session(session: DBSession) -> dict:
@@ -551,3 +557,45 @@ async def compare_sessions(
     sessions = result.scalars().all()
     
     return [serialize_session(s) for s in sessions]
+
+async def background_regenerate_study_plan(session_id: str):
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(DBSession).where(DBSession.id == session_id))
+            session = result.scalar_one_or_none()
+            if session:
+                plan = await generate_study_plan_tool(
+                    weak_areas=session.weak_areas,
+                    timeline_days=session.timeline_days,
+                    company=session.company,
+                )
+                session.study_plan = plan
+                flag_modified(session, "study_plan")
+                await db.commit()
+    except Exception as e:
+        print(f"Error regenerating study plan: {e}")
+
+@router.post("/{session_id}/gaps")
+async def add_custom_gap(
+    session_id: str,
+    req: AddGapRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(DBSession).where(DBSession.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    current_gaps = list(session.weak_areas) if session.weak_areas else []
+    if req.gap not in current_gaps:
+        current_gaps.append(req.gap)
+        session.weak_areas = current_gaps
+        session.study_plan = None
+        flag_modified(session, "weak_areas")
+        flag_modified(session, "study_plan")
+        await db.commit()
+        
+        background_tasks.add_task(background_regenerate_study_plan, session_id)
+        
+    return {"status": "success", "weak_areas": session.weak_areas}

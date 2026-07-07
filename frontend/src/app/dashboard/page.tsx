@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api, updateSessionTasks, fetchAnalyticsSummary, fetchCurrentStreak, fetchCompanyFocusList } from "@/lib/api";
 import { getActiveSessionId, getAuthToken, setActiveSessionId } from "@/lib/store";
 import { useRouter } from "next/navigation";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -191,17 +192,12 @@ export default function DashboardPage() {
   } else if (scoreTrend.length === 1) {
     scoreTrend = [scoreTrend[0], scoreTrend[0]];
   }
-  const trendPoints = scoreTrend.map((s, i) => {
-    const x = (i / (scoreTrend.length - 1)) * 1000;
-    const y = 200 - (s / 100) * 180;
-    
-    // For padding cases, gracefully handle out-of-bounds indices
+  const scoreTrendData = scoreTrend.map((s, i) => {
     const origSession = sessionHistory[Math.min(i, sessionHistory.length - 1)] || null;
     const label = origSession ? `Session ${Math.min(i, sessionHistory.length - 1) + 1}: ${origSession.company || 'Mock'}` : `Session ${i + 1}`;
     
-    return { x, y, val: s, label, attempts: sessionHistory.length };
+    return { name: `S${i + 1}`, val: s, label, attempts: sessionHistory.length };
   });
-  const trendPath = `M ${trendPoints.map(p => `${p.x} ${p.y}`).join(' L ')}`;
 
   const recentSessionsData = sessionHistory.map((s: any) => {
     const timeTaken = s.time_taken || 0;
@@ -265,17 +261,15 @@ export default function DashboardPage() {
     });
   }
   
-  if (allNotifications.length === 0) {
-    allNotifications.push({
-      id: 4,
-      title: 'Plan Ready',
-      text: `Your ${timeline_days}-day study plan is generated and ready to go. Run your first mock to start tracking progress.`,
-      time: 'Recently',
-      color: 'text-[#fbbf24]',
-      bg: 'bg-[#fbbf24]/10',
-      border: 'border-[#fbbf24]/20'
-    });
-  }
+  allNotifications.push({
+    id: 4,
+    title: 'Plan Ready',
+    text: `Your ${timeline_days}-day study plan is generated and ready to go. Run your first mock to start tracking progress.`,
+    time: 'Recently',
+    color: 'text-[#fbbf24]',
+    bg: 'bg-[#fbbf24]/10',
+    border: 'border-[#fbbf24]/20'
+  });
   
   const notifications = allNotifications.filter(n => !dismissedNotifs.includes(n.id));
 
@@ -368,7 +362,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="flex-1 p-8 max-w-[1200px] mx-auto w-full space-y-6">
+      <main className="flex-1 p-4 sm:p-8 max-w-[1200px] mx-auto w-full space-y-6">
         
         {/* Warning Banner */}
         {hasCriticalGaps && (
@@ -386,7 +380,7 @@ export default function DashboardPage() {
         {/* Metric Cards Grid - 3x2 Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
-          <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl p-6 flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-white/[0.05] to-transparent backdrop-blur-xl border border-white/[0.05] hover:border-white/[0.15] hover:bg-white/[0.04] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-6 flex flex-col justify-between shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_32px_0_rgba(0,0,0,0.3)] hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] group">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium text-[#777294] uppercase tracking-wider">DAYS UNTIL INTERVIEW</span>
               <div className="w-8 h-8 rounded-lg bg-[#fbbf24]/10 flex items-center justify-center">
@@ -399,7 +393,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl p-6 flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-white/[0.05] to-transparent backdrop-blur-xl border border-white/[0.05] hover:border-white/[0.15] hover:bg-white/[0.04] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-6 flex flex-col justify-between shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_32px_0_rgba(0,0,0,0.3)] hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] group">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium text-[#777294] uppercase tracking-wider">AVG MOCK SCORE</span>
               <div className="w-8 h-8 rounded-lg bg-[#10b981]/10 flex items-center justify-center">
@@ -412,7 +406,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl p-6 flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-white/[0.05] to-transparent backdrop-blur-xl border border-white/[0.05] hover:border-white/[0.15] hover:bg-white/[0.04] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-6 flex flex-col justify-between shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_32px_0_rgba(0,0,0,0.3)] hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] group">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium text-[#777294] uppercase tracking-wider">GAP COVERAGE</span>
               <div className="w-8 h-8 rounded-lg bg-[#8b5cf6]/10 flex items-center justify-center">
@@ -427,7 +421,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl p-6 flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-white/[0.05] to-transparent backdrop-blur-xl border border-white/[0.05] hover:border-white/[0.15] hover:bg-white/[0.04] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-6 flex flex-col justify-between shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_32px_0_rgba(0,0,0,0.3)] hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] group">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium text-[#777294] uppercase tracking-wider">STUDY STREAK</span>
               <div className="w-8 h-8 rounded-lg bg-[#ff6b6b]/10 flex items-center justify-center">
@@ -446,7 +440,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl p-6 flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-white/[0.05] to-transparent backdrop-blur-xl border border-white/[0.05] hover:border-white/[0.15] hover:bg-white/[0.04] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-6 flex flex-col justify-between shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_32px_0_rgba(0,0,0,0.3)] hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] group">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium text-[#777294] uppercase tracking-wider">PLAN COMPLETION</span>
               <div className="w-8 h-8 rounded-lg bg-[#8b5cf6]/10 flex items-center justify-center">
@@ -459,7 +453,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl p-6 flex flex-col justify-between relative overflow-hidden">
+          <div className="bg-gradient-to-br from-white/[0.05] to-transparent backdrop-blur-xl border border-white/[0.05] hover:border-white/[0.15] hover:bg-white/[0.04] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-6 flex flex-col justify-between shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_8px_32px_0_rgba(0,0,0,0.3)] hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] relative overflow-hidden group">
             <div className="flex items-center justify-between mb-4 relative z-10">
               <span className="text-xs font-medium text-[#777294] uppercase tracking-wider">AT-RISK TOPICS</span>
               <div className="w-8 h-8 rounded-lg bg-[#ef4444]/10 flex items-center justify-center">
@@ -527,74 +521,34 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-          <div className="relative h-64 w-full">
-            {/* Y Axis */}
-            <div className="absolute left-0 inset-y-0 flex flex-col justify-between text-xs text-[#5c5875] py-2">
-              <span>100</span>
-              <span>75</span>
-              <span>50</span>
-              <span>25</span>
-              <span>0</span>
-            </div>
-            
-            {/* Grid lines */}
-            <div className="absolute left-10 right-0 inset-y-0 flex flex-col justify-between py-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="border-b border-[#2d2c41] border-dashed w-full" />
-              ))}
-            </div>
-
-            {/* Target Line */}
-            <div className="absolute left-10 right-0 top-[20%] border-b-2 border-[#fbbf24] border-dashed w-full opacity-70" />
-
-            {/* Dynamic SVG Line Chart */}
-            <div className="absolute left-10 right-0 inset-y-0 pt-4 pb-[18px]">
-              <svg className="w-full h-full relative z-10" preserveAspectRatio="none" viewBox="0 0 1000 200">
-                <path d={trendPath} fill="none" stroke="#8b5cf6" strokeWidth="4" className="drop-shadow-[0_4px_12px_rgba(139,92,246,0.5)]" />
-                {trendPoints.map((pt, i) => (
-                  <circle 
-                    key={i} 
-                    cx={pt.x} 
-                    cy={pt.y} 
-                    r={hoveredPoint === pt ? "8" : "5"} 
-                    fill="#12121a" 
-                    stroke="#8b5cf6" 
-                    strokeWidth="3"
-                    className="transition-all cursor-pointer"
-                    onMouseEnter={() => setHoveredPoint(pt)}
-                    onMouseLeave={() => setHoveredPoint(null)}
-                  />
-                ))}
-              </svg>
-              
-              {/* Tooltip Overlay */}
-              {hoveredPoint && (
-                <div 
-                  className="absolute z-50 bg-[#12121a] border border-[#2d2c41] rounded-xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.8)] pointer-events-none transform -translate-x-1/2 -translate-y-[120%]"
-                  style={{ 
-                    left: `${(hoveredPoint.x / 1000) * 100}%`, 
-                    top: `${(hoveredPoint.y / 200) * 100}%` 
+          <div className="h-64 w-full mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={scoreTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <XAxis dataKey="name" stroke="#5c5875" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#5c5875" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
+                          <div className="text-sm font-bold text-white mb-2">{data.label}</div>
+                          <div className={`text-3xl font-black mb-1 ${data.val > 75 ? 'text-[#10b981]' : data.val > 50 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}`}>
+                            {data.val.toFixed(0)}%
+                          </div>
+                          <div className="text-xs text-[#5c5875]">
+                            {data.attempts} attempts total
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
-                >
-                  <div className="text-sm font-bold text-white mb-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
-                    {hoveredPoint.label}
-                  </div>
-                  <div className={`text-3xl font-black mb-1 ${hoveredPoint.val > 75 ? 'text-[#10b981]' : hoveredPoint.val > 50 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}`}>
-                    {hoveredPoint.val.toFixed(0)}%
-                  </div>
-                  <div className="text-xs text-[#5c5875]">
-                    {hoveredPoint.attempts} attempts total
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* X Axis labels */}
-            <div className="absolute left-10 right-0 bottom-[-24px] flex justify-between text-xs text-[#5c5875]">
-              {scoreTrend.map((_, i) => (
-                <span key={i}>S{i + 1}</span>
-              ))}
-            </div>
+                  cursor={{ stroke: '#2d2c41', strokeWidth: 1, strokeDasharray: '4 4' }}
+                />
+                <Line type="monotone" dataKey="val" stroke="#8b5cf6" strokeWidth={4} dot={{ r: 5, fill: "#12121a", stroke: "#8b5cf6", strokeWidth: 3 }} activeDot={{ r: 8, fill: "#8b5cf6" }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
@@ -650,39 +604,29 @@ export default function DashboardPage() {
             </div>
           </div>
           
-          <div className="relative h-64 w-full pt-4">
-            {/* Y Axis */}
-            <div className="absolute left-0 inset-y-0 flex flex-col justify-between text-xs text-[#5c5875] pb-[30px] z-0">
-              <span>100</span>
-              <span>75</span>
-              <span>50</span>
-              <span>25</span>
-              <span>0</span>
-            </div>
-            
-            {/* Grid lines */}
-            <div className="absolute left-10 right-0 inset-y-0 flex flex-col justify-between pb-[30px] z-0">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="border-b border-[#2d2c41] border-dashed w-full h-[1px]" />
-              ))}
-            </div>
-
-            {/* Bars */}
-            <div className="absolute left-10 right-0 inset-y-0 flex items-end justify-between px-4 pb-[30px] z-10">
-              {activeTopicAccuracy.map((b: any, i: number) => (
-                <div key={i} className="w-12 flex flex-col items-center justify-end h-full relative group">
-                  <div className="w-10 rounded-t-sm transition-all duration-300" style={{ height: `${b.val}%`, backgroundColor: b.color }} />
-                  <div className="absolute -bottom-7 w-20 text-center text-xs text-[#5c5875] truncate">{b.label}</div>
-                  
-                  {/* Tooltip on hover */}
-                  <div className="opacity-0 group-hover:opacity-100 absolute bottom-full mb-2 bg-[#181724] border border-[#2d2c41] rounded-lg p-3 shadow-xl transition-opacity pointer-events-none z-20 min-w-[120px]">
-                    <div className="text-sm font-bold text-white mb-1">{b.label}</div>
-                    <div className="text-xl font-bold mb-1" style={{ color: b.color }}>{b.val}%</div>
-                    <div className="text-xs text-[#5c5875]">6 attempts</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="h-72 w-full pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={activeTopicAccuracy}>
+                <PolarGrid stroke="#2d2c41" />
+                <PolarAngleAxis dataKey="label" tick={{ fill: '#a5a0c4', fontSize: 12 }} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#5c5875', fontSize: 10 }} axisLine={false} tickCount={5} />
+                <Radar name="Accuracy" dataKey="val" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.4} />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-[#181724] border border-[#2d2c41] rounded-lg p-3 shadow-xl z-50">
+                          <div className="text-sm font-bold text-white mb-1">{data.label}</div>
+                          <div className="text-xl font-bold mb-1" style={{ color: data.color || '#8b5cf6' }}>{data.val}%</div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 

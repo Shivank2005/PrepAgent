@@ -102,10 +102,10 @@ async def generate_mock_questions_tool(
 Cover: DSA, System Design, and Behavioral.
 Focus on weak areas: {weak_areas}
 
-IMPORTANT: We have retrieved the following previous year interview experiences and questions for {company}:
+IMPORTANT: We have retrieved the following REAL previous year interview experiences and questions for {company} directly from the web and our database:
 {past_questions_context}
 
-Your generated mock questions MUST closely match the pattern, difficulty, and specific style of these previous {company} questions.
+You MUST prioritize using the exact real questions provided in the context above. Do not invent, guess, or fabricate questions unless the context is completely empty or insufficient.
 Return JSON array: [{{id, type, difficulty, question, hint, expected_topics: [string]}}]
 Return ONLY valid JSON."""),
         ("human", "Generate questions.")

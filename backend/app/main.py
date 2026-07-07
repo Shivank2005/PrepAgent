@@ -4,6 +4,8 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.api import chat, resume, sessions, mock_interview, waitlist, auth, assistant, code_runner, drills
 from app.db.database import init_db
+from fastapi.staticfiles import StaticFiles
+import os
 
 app = FastAPI(title="PrepAgent API", version="2.4.0")
 
@@ -21,6 +23,9 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     await init_db()
+    os.makedirs("uploads/avatars", exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])

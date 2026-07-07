@@ -12,6 +12,16 @@ export default function RoadmapPage() {
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (session && !session.study_plan) {
+      interval = setInterval(() => {
+        fetchSession(session.session_id, true);
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [session?.study_plan, session?.session_id]);
+
+  useEffect(() => {
     if (!getAuthToken()) {
       router.push("/login");
       return;
@@ -24,9 +34,9 @@ export default function RoadmapPage() {
     fetchSession(sessionId);
   }, [router]);
 
-  const fetchSession = async (sessionId: string) => {
+  const fetchSession = async (sessionId: string, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await api.get(`/chat/session/${sessionId}`);
       const s = res.data;
       setSession(s);
@@ -39,7 +49,7 @@ export default function RoadmapPage() {
         router.push("/setup");
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -54,10 +64,20 @@ export default function RoadmapPage() {
     }
   };
 
-  if (loading || !session) {
+  if (loading || (!session && !loading)) {
     return (
       <div className="flex items-center justify-center h-full w-full bg-[#0a0a0f]">
         <Loader2 className="animate-spin text-[#8b5cf6]" size={32} />
+      </div>
+    );
+  }
+
+  if (session && !session.study_plan) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full w-full bg-[#0a0a0f] space-y-4">
+        <Loader2 className="animate-spin text-[#8b5cf6]" size={48} />
+        <h2 className="text-xl font-bold text-white text-center px-4">Customizing your Study Plan...</h2>
+        <p className="text-[#a5a0c4] text-center px-4">Generating a new roadmap based on your latest weaknesses.</p>
       </div>
     );
   }

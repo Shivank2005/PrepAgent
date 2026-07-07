@@ -4,13 +4,29 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { getActiveSessionId, getAuthToken } from "@/lib/store";
-import { Loader2, AlertCircle, AlertTriangle, Crosshair, ChevronRight, BookOpen, Lightbulb, TrendingUp } from "lucide-react";
+import { Loader2, AlertCircle, AlertTriangle, Crosshair, ChevronRight, BookOpen, Lightbulb, TrendingUp, Plus, Target } from "lucide-react";
 import Link from "next/link";
 
 export default function GapAnalysisPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
+  const [newGap, setNewGap] = useState("");
+  const [addingGap, setAddingGap] = useState(false);
+
+  const handleAddGap = async () => {
+    if (!newGap.trim() || !session) return;
+    try {
+      setAddingGap(true);
+      const res = await api.post(`/sessions/${session.session_id}/gaps`, { gap: newGap.trim() });
+      setSession({ ...session, weak_areas: res.data.weak_areas });
+      setNewGap("");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAddingGap(false);
+    }
+  };
 
   useEffect(() => {
     if (!getAuthToken()) {
@@ -88,6 +104,36 @@ export default function GapAnalysisPage() {
              <div className="text-3xl font-bold text-white mb-1">{(session.readiness_score || 0).toFixed(0)}<span className="text-lg text-[#5c5875]">%</span></div>
              <div className="text-xs font-medium text-[#777294] uppercase tracking-wider">Readiness Score</div>
            </div>
+        </div>
+
+        {/* Custom Gap Input */}
+        <div className="bg-gradient-to-r from-[#8b5cf6]/15 to-[#12121a] border border-[#8b5cf6]/30 rounded-xl p-6 relative overflow-hidden flex flex-col md:flex-row items-center gap-6 shadow-[0_0_30px_-10px_rgba(139,92,246,0.15)]">
+          <div className="absolute top-0 left-0 w-1 h-full bg-[#8b5cf6]"></div>
+          <div className="w-12 h-12 rounded-full bg-[#8b5cf6]/20 flex items-center justify-center text-[#c084fc] flex-shrink-0">
+            <Target size={24} />
+          </div>
+          <div className="flex-1 w-full">
+            <h3 className="text-white font-bold text-lg mb-1">Add a Custom Weakness</h3>
+            <p className="text-sm text-[#a5a0c4]">Are you secretly worried about a specific topic? Add it here to prioritize it in your study plan.</p>
+          </div>
+          <div className="flex w-full md:w-auto items-center gap-3">
+            <input 
+              type="text" 
+              value={newGap}
+              onChange={(e) => setNewGap(e.target.value)}
+              placeholder="e.g. Dynamic Programming"
+              className="bg-[#0a0a0f]/80 backdrop-blur-sm border border-[#8b5cf6]/20 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-[#8b5cf6] focus:ring-1 focus:ring-[#8b5cf6] w-full md:w-72 transition-all placeholder:text-[#5c5875]"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddGap()}
+            />
+            <button 
+              onClick={handleAddGap}
+              disabled={addingGap || !newGap.trim()}
+              className="bg-gradient-to-r from-[#8b5cf6] to-[#6d28d9] hover:from-[#7c3aed] hover:to-[#5b21b6] disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-3 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-[#8b5cf6]/20 whitespace-nowrap"
+            >
+              {addingGap ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+              Add Gap
+            </button>
+          </div>
         </div>
 
         {weakAreas.length === 0 ? (

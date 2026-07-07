@@ -3,6 +3,19 @@ PrepAgent Report Template — Hardcoded HTML/CSS builder.
 
 The LLM returns structured JSON analysis. This module injects that data
 into a pixel-perfect HTML template that matches the reference design.
+
+PAGINATION NOTE:
+    This template is rendered to PDF via html2pdf.js (html2canvas + jsPDF).
+    html2pdf.js renders the entire DOM as one continuous canvas, then slices
+    it into A4 pages. Page breaks are controlled by:
+    1. The `.page-break` CSS class — html2pdf.js `before` selector (primary)
+    2. `page-break-inside: avoid` on card-level elements (secondary)
+
+    DO NOT reuse the cover's wrapper class for content sections.
+    DO NOT set fixed pixel heights on section wrappers.
+    DO NOT use CSS `break-before: page` / `page-break-before: always`
+        — html2pdf.js handles these differently than true print renderers
+        and they cause phantom whitespace.
 """
 import html as html_module
 from datetime import datetime
@@ -10,23 +23,51 @@ from datetime import datetime
 
 # ─────────────────────────── CSS ───────────────────────────
 REPORT_CSS = """
-/* ── PAGE SETUP ── */
+/* ──────────────────────────────────────────────
+   PAGE SETUP — @page for print/WeasyPrint only
+   html2pdf.js uses its own `margin` option
+   ────────────────────────────────────────────── */
+@page {
+  size: A4 portrait;
+  margin: 20mm 15mm;
+}
+
+/* ── GLOBAL RESET ── */
 .report-wrapper {
   font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
-  color: #1c2536; margin: 0; font-size: 11.5px; line-height: 1.55;
+  color: #1c2536;
+  margin: 0; padding: 0;
+  font-size: 11.5px; line-height: 1.55;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
   background-color: #ffffff;
   text-align: left;
+  width: 100%;
 }
 .report-wrapper * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── COVER PAGE ── */
-/* ── COVER PAGE ── */
-.cover {
-  height: 1040px; overflow: hidden;
+/* ──────────────────────────────────────────────
+   PAGE-BREAK MARKER
+   html2pdf.js will slice the canvas BEFORE any
+   element carrying this class and reposition
+   content to the top of the next page.
+   ────────────────────────────────────────────── */
+.page-break {
+  /* No height, no visual footprint — just a marker */
+  display: block;
+  height: 0;
+  page-break-before: always;
+  break-before: page;
+}
+
+/* ──────────────────────────────────────────────
+   COVER PAGE — unique class, NEVER reused
+   Uses a min-height to fill the first page.
+   ────────────────────────────────────────────── */
+.cover-page {
+  height: 1122px; /* Safely under the 1122.5px A4 height to prevent a blank overflow page */
+  box-sizing: border-box;
   background: linear-gradient(160deg, #0b1230 0%, #16215a 55%, #1c2b74 100%);
-  color: #fff; padding: 50px 45px; position: relative;
-  border-radius: 20px;
+  color: #fff; padding: 140px 60px 50px 60px; position: relative;
 }
 .logo { font-size: 20px; font-weight: 700; }
 .logo-prep { color: #fff; }
@@ -46,7 +87,7 @@ h1.cover-title {
 }
 .cover-card {
   background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 14px; padding: 26px 30px; max-width: 480px;
+  border-radius: 14px; padding: 26px 30px; max-width: 100%;
 }
 .cover-row { display: flex; gap: 40px; margin-bottom: 14px; }
 .cover-label {
@@ -56,15 +97,20 @@ h1.cover-title {
 .cover-value { font-size: 15px; font-weight: 700; color: #fff; }
 .cover-divider { border-top: 1px solid rgba(255,255,255,0.15); margin: 6px 0 14px 0; }
 .cover-footer {
-  position: absolute; bottom: 40px; left: 45px; right: 45px;
+  margin-top: 80px;
   text-align: center; font-size: 7.5px; letter-spacing: 2px; color: #6070a0;
   text-transform: uppercase;
 }
 
-/* ── TABLE OF CONTENTS ── */
-.toc-page {
-  height: 1040px; overflow: hidden; page-break-before: always; padding: 30px 20px;
+/* ──────────────────────────────────────────────
+   TABLE OF CONTENTS — distinct class from cover
+   Normal block flow, content starts at top.
+   ────────────────────────────────────────────── */
+.toc-section {
+  padding: 50px 50px 20px 50px;
   background: #ffffff;
+  width: 100%;
+  box-sizing: border-box;
 }
 .toc-title { font-size: 26px; font-weight: 800; margin: 0 0 30px 0; color: #1c2536; }
 .toc-item {
@@ -75,10 +121,17 @@ h1.cover-title {
 .toc-num { color: #2f4bd6; font-weight: 700; font-size: 13px; min-width: 22px; }
 .toc-label { font-size: 14px; font-weight: 600; color: #222c42; }
 
-/* ── CHAPTERS ── */
-.chapter {
-  padding: 30px 20px;
-  background: #fff; page-break-before: always;
+/* ──────────────────────────────────────────────
+   CHAPTER SECTIONS — distinct class from cover
+   Normal block flow, content starts at top.
+   Page breaks are handled by a preceding
+   `.page-break` marker div, NOT by this class.
+   ────────────────────────────────────────────── */
+.content-section {
+  padding: 50px 50px 20px 50px;
+  background: #fff;
+  width: 100%;
+  box-sizing: border-box;
 }
 .chapter-tag {
   font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #2f4bd6;
@@ -91,15 +144,20 @@ h3.section-title { font-size: 15px; font-weight: 700; margin: 26px 0 10px 0; col
 .callout {
   background: #eaf0fe; border-left: 4px solid #2f4bd6; border-radius: 6px;
   padding: 16px 18px; margin-bottom: 26px;
+  page-break-inside: avoid; break-inside: avoid;
 }
 .callout-label { font-size: 12px; font-weight: 700; color: #24327a; margin-bottom: 6px; }
 .callout-text { font-size: 11px; color: #2a3658; line-height: 1.65; }
 
 /* ── METRIC CARDS ── */
-.metric-row { display: flex; gap: 16px; margin-bottom: 16px; }
+.metric-row {
+  display: flex; gap: 16px; margin-bottom: 16px; width: 100%;
+  page-break-inside: avoid; break-inside: avoid;
+}
 .metric-card {
   flex: 1; border: 1px solid #e1e4ec; border-radius: 10px;
   padding: 20px 14px; text-align: center; background: #fff;
+  page-break-inside: avoid; break-inside: avoid;
 }
 .metric-label {
   font-size: 9px; letter-spacing: 1px; color: #8189a0;
@@ -129,7 +187,8 @@ table.dim-table td { padding: 9px 10px; font-size: 11px; border-bottom: 1px soli
 /* ── GROWTH OPPORTUNITY CARDS ── */
 .growth-card {
   border: 1px solid #e1e4ec; border-radius: 10px; padding: 16px 18px;
-  margin-bottom: 14px; background: #fff;
+  margin-bottom: 14px; background: #fff; width: 100%;
+  page-break-inside: avoid; break-inside: avoid;
 }
 .growth-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; color: #1c2536; }
 .growth-desc { font-size: 10.5px; color: #333f5c; line-height: 1.6; }
@@ -140,7 +199,11 @@ table.dim-table td { padding: 9px 10px; font-size: 11px; border-bottom: 1px soli
 .tag-high { background: #fdeaea; color: #b23a3a; }
 .tag-med  { background: #fef3e0; color: #b3760f; }
 
-/* ── STUDY PLAN TABLES ── */
+/* ── STUDY PLAN ── */
+.plan-block {
+  page-break-inside: avoid; break-inside: avoid;
+  margin-bottom: 8px;
+}
 table.plan-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
 table.plan-table th {
   background: #131a2c; color: #fff; text-align: left;
@@ -154,8 +217,15 @@ table.plan-table tr:nth-child(even) td { background: #f9fafc; }
 
 /* ── Q&A ANALYSIS CARDS ── */
 .qa-card {
-  border: 1px solid #e1e4ec; border-radius: 10px; margin-bottom: 22px;
-  overflow: hidden; page-break-inside: avoid;
+  /* Use box-shadow instead of border so we can use border-top as a transparent margin */
+  box-shadow: 0 0 0 1px #e1e4ec; 
+  border-radius: 10px; 
+  margin-bottom: 0px;
+  /* This transparent border acts as a top margin that html2pdf respects when pushing to a new page */
+  border-top: 40px solid transparent;
+  background-clip: padding-box;
+  overflow: hidden; width: 100%;
+  page-break-inside: avoid; break-inside: avoid;
 }
 .qa-head {
   background: #131a2c; padding: 10px 16px; display: flex;
@@ -190,10 +260,31 @@ pre.qa-code {
 .sw-col li { font-size: 10.3px; color: #333f5c; margin-bottom: 4px; line-height: 1.5; }
 .rec-box {
   background: #eaf0fe; border-radius: 6px; padding: 10px 14px; margin-top: 12px;
+  page-break-inside: avoid; break-inside: avoid;
 }
 .rec-box .qa-sublabel { color: #24327a; margin-top: 0; }
 .rec-box ul { margin: 0; padding-left: 15px; }
 .rec-box li { font-size: 10.3px; color: #24327a; margin-bottom: 4px; line-height: 1.5; }
+
+/* ── TRANSCRIPT ── */
+.transcript-turn {
+  margin-bottom: 14px;
+  page-break-inside: avoid; break-inside: avoid;
+}
+.turn-label {
+  font-size: 10px; font-weight: 700; color: #5a6178;
+  margin-bottom: 4px; display: flex; align-items: center; gap: 6px;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-candidate { background: #2f4bd6; }
+.dot-interviewer { background: #227a4a; }
+.turn-box {
+  background: #f9fafc; border: 1px solid #edeff5; border-radius: 6px;
+  padding: 10px 14px; font-size: 10.5px; color: #333f5c; line-height: 1.6;
+}
+.turn-box.interviewer {
+  background: #eaf0fe; border-color: #d0d9f5;
+}
 
 /* ── PAGE FOOTER ── */
 .page-footer {
@@ -291,7 +382,17 @@ def _format_date(date_str: str) -> str:
 
 
 def build_report_html(session_data: dict, analysis: dict, messages: list) -> str:
-    """Build the complete HTML report from session data and LLM analysis."""
+    """Build the complete HTML report from session data and LLM analysis.
+
+    IMPORTANT — class naming contract:
+      .cover-page    → cover only, has min-height to fill first PDF page
+      .toc-section   → table of contents, plain block flow
+      .content-section → every chapter body, plain block flow
+      .page-break    → zero-height marker div; html2pdf.js slices before it
+
+    Never apply .cover-page to content sections. Never add height/min-height
+    or flex vertical centering to .toc-section or .content-section.
+    """
 
     company = session_data.get("target_company") or "Not specified for this session"
     role = session_data.get("target_role") or "Software Engineer — General"
@@ -305,8 +406,9 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
         analysis_by_id[str(qa.get("id", ""))] = qa
 
     # ─── COVER PAGE ───
+    # Uses .cover-page (min-height to fill page). This class is NEVER reused.
     cover_html = f"""
-<div class="cover">
+<div class="cover-page">
   <div class="logo"><span class="logo-prep">PREP</span><span class="logo-agent">AGENT</span></div>
   <div class="cover-icon"><div class="cover-icon-bar"></div></div>
   <h1 class="cover-title">Comprehensive Assessment Report</h1>
@@ -323,8 +425,10 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
 </div>"""
 
     # ─── TABLE OF CONTENTS ───
+    # .page-break marker forces html2pdf.js to start a new page.
+    # .toc-section is a plain block container — NO height, NO flex centering.
     toc_html = """
-<div class="toc-page">
+<div class="toc-section">
   <div class="toc-title">Table of Contents</div>
   <div class="toc-item"><span class="toc-num">01</span><span class="toc-label">Executive Summary</span></div>
   <div class="toc-item"><span class="toc-num">02</span><span class="toc-label">Growth Opportunities</span></div>
@@ -370,7 +474,8 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
     </tr>"""
 
     exec_summary = f"""
-<div class="chapter">
+<div class="page-break"></div>
+<div class="content-section">
   <div class="chapter-tag">CHAPTER 01</div>
   <h2 class="chapter-title">Executive Summary</h2>
   <div class="callout">
@@ -410,7 +515,8 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
     </div>"""
 
     growth_html = f"""
-<div class="chapter">
+<div class="page-break"></div>
+<div class="content-section">
   <div class="chapter-tag">CHAPTER 02</div>
   <h2 class="chapter-title">Growth Opportunities</h2>
   {growth_cards}
@@ -424,11 +530,13 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
         for row in rows:
             r += f"""<tr><td>{_esc(row.get('days',''))}</td><td>{_esc(row.get('focus',''))}</td><td>{_esc(row.get('activity',''))}</td></tr>"""
         return f"""
-    <h3 class="section-title">{_esc(title)}</h3>
-    <table class="plan-table">
-      <tr><th>Days</th><th>Focus</th><th>Activity</th></tr>
-      {r}
-    </table>"""
+    <div class="plan-block">
+      <h3 class="section-title">{_esc(title)}</h3>
+      <table class="plan-table">
+        <tr><th>Days</th><th>Focus</th><th>Activity</th></tr>
+        {r}
+      </table>
+    </div>"""
 
     week1 = _plan_table(
         f"Week 1 — {sp.get('week1_title', 'Foundation')}", sp.get("week1_rows", [])
@@ -438,7 +546,8 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
     )
 
     study_plan_html = f"""
-<div class="chapter">
+<div class="page-break"></div>
+<div class="content-section">
   <div class="chapter-tag">CHAPTER 03</div>
   <h2 class="chapter-title">Customized Study Plan</h2>
   <p style="font-size:11px;color:#333f5c;margin-bottom:16px;">A focused two-week roadmap to address your largest gaps while reinforcing existing strengths.</p>
@@ -502,7 +611,8 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
     </div>"""
 
     qa_html = f"""
-<div class="chapter">
+<div class="page-break"></div>
+<div class="content-section">
   <div class="chapter-tag">CHAPTER 04</div>
   <h2 class="chapter-title">Mock Questions &amp; Analysis</h2>
   {qa_cards}
@@ -540,32 +650,17 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
     </div>"""
 
     transcript_html = f"""
-<div class="chapter">
+<div class="page-break"></div>
+<div class="content-section">
   <div class="chapter-tag">CHAPTER 05</div>
   <h2 class="chapter-title">Complete Interview Transcript</h2>
   {transcript_turns}
 </div>"""
 
     # ─── ASSEMBLE FULL DOCUMENT ───
-    html_parts = {
-        "cover": cover_html,
-        "toc": toc_html,
-        "exec_summary": exec_summary,
-        "growth": growth_html,
-        "study_plan": study_plan_html,
-        "questions": qa_html
-    }
-    html_doc = f"""
-<style>
+    html_doc = f"""<style>
 {REPORT_CSS}
 </style>
-<div class="report-wrapper">
-  {html_parts["cover"]}
-  {html_parts["toc"]}
-  {html_parts["exec_summary"]}
-  {html_parts["growth"]}
-  {html_parts["study_plan"]}
-  {html_parts["questions"]}
-</div>
+<div class="report-wrapper">{cover_html}{toc_html}{exec_summary}{growth_html}{study_plan_html}{qa_html}</div>
 """
     return html_doc

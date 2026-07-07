@@ -18,6 +18,8 @@ langchain-groq
 passlib[bcrypt]
 python-jose[cryptography]
 python-multipart
+duckduckgo-search
+beautifulsoup4
 google-auth
 requests
 langchain-pinecone

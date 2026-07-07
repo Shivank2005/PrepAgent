@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getAuthToken } from "./store";
+import toast from "react-hot-toast";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
 
@@ -12,6 +13,22 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    let detail = error?.response?.data?.detail || error?.response?.data?.error;
+    if (typeof detail === 'object') detail = JSON.stringify(detail);
+    
+    if (error.message === "Network Error" || !error.response) {
+      toast.error("⚠️ Backend server is unreachable. Is it running?");
+    } else {
+      toast.error(`API Error: ${detail || error.message || "An unknown error occurred"}`);
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 export interface ChatStreamPayload {
   session_id?: string;
@@ -35,9 +52,11 @@ export async function streamChat(
   });
   if (!res.ok) {
     const detail = await readErrorBody(res);
+    toast.error(`Chat Error: ${detail || res.statusText || "Server error"}`);
     throw new Error(`Backend returned ${res.status}${detail ? `: ${detail}` : ""}`);
   }
   if (!res.body) {
+    toast.error("Backend did not return a streaming response.");
     throw new Error("Backend did not return a streaming response.");
   }
   const reader = res.body.getReader();
@@ -60,6 +79,15 @@ export async function uploadResume(file: File) {
   const form = new FormData();
   form.append("file", file);
   const res = await api.post("/resume/upload", form);
+  return res.data;
+}
+
+export async function uploadAvatar(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await api.post("/auth/avatar", form, {
+    headers: { "Content-Type": "multipart/form-data" }
+  });
   return res.data;
 }
 
@@ -174,6 +202,43 @@ export async function executeCode(code: string, language: string = "javascript")
     return res.data;
   } catch (error) {
     throw normalizeApiError(error, "Code execution failed");
+  }
+}
+
+// Settings Endpoints
+export async function updateProfile(name: string) {
+  try {
+    const res = await api.put("/auth/me", { name });
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Failed to update profile");
+  }
+}
+
+export async function updatePassword(currentPassword: string, newPassword: string) {
+  try {
+    const res = await api.put("/auth/password", { current_password: currentPassword, new_password: newPassword });
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Failed to update password");
+  }
+}
+
+export async function updatePreferences(preferences: Record<string, any>) {
+  try {
+    const res = await api.put("/auth/preferences", { preferences });
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Failed to update preferences");
+  }
+}
+
+export async function deleteAccount() {
+  try {
+    const res = await api.delete("/auth/me");
+    return res.data;
+  } catch (error) {
+    throw normalizeApiError(error, "Failed to delete account");
   }
 }
 
