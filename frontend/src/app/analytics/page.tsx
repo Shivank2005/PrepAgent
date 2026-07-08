@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, fetchAnalyticsSummary, fetchCurrentStreak } from "@/lib/api";
+import { api, fetchAnalyticsSummary, fetchCurrentStreak, fetchSessionHistory } from "@/lib/api";
 import { getActiveSessionId, getAuthToken } from "@/lib/store";
 import { Loader2, BarChart3, TrendingUp, Award, Target, Activity, Clock3, Users, Flame } from "lucide-react";
 import {
@@ -29,6 +29,7 @@ export default function AnalyticsPage() {
   const [session, setSession] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
   const [streak, setStreak] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,14 +49,16 @@ export default function AnalyticsPage() {
     try {
       setLoading(true);
       setError(null);
-      const [sessionRes, summaryRes, streakRes] = await Promise.all([
+      const [sessionRes, summaryRes, streakRes, historyRes] = await Promise.all([
         api.get(`/chat/session/${sessionId}`),
         fetchAnalyticsSummary(),
         fetchCurrentStreak(),
+        fetchSessionHistory(),
       ]);
       setSession(sessionRes.data);
       setSummary(summaryRes);
       setStreak(streakRes);
+      setHistory(historyRes || []);
     } catch (err: any) {
       console.error(err);
       setError(err?.message || "Unable to load analytics right now.");
@@ -157,7 +160,7 @@ export default function AnalyticsPage() {
             <div className="h-[320px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={companyCounts} dataKey="count" nameKey="company" cx="50%" cy="50%" outerRadius={110} label={(entry: any) => `${entry.company}`.slice(0, 10)}>
+                  <Pie data={companyCounts} dataKey="count" nameKey="company" cx="50%" cy="50%" outerRadius={85} label={(entry: any) => entry.name}>
                     {companyCounts.map((_: any, index: number) => (
                       <Cell key={index} fill={COLORS[index % COLORS.length]} />
                     ))}
@@ -171,7 +174,7 @@ export default function AnalyticsPage() {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <section className="w-full">
           <div className="bg-[#12121a] border border-[#2d2c41] rounded-2xl p-6">
             <h2 className="text-xl font-bold text-white tracking-tight mb-2">Most frequent weak areas</h2>
             <p className="text-sm text-[#a5a0c4] mb-6">These are the topics that repeatedly appear in your generated gap analysis.</p>
@@ -188,16 +191,29 @@ export default function AnalyticsPage() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="text-[#a5a0c4] text-sm rounded-xl border border-[#2d2c41] bg-[#0a0a0f] p-6">
-                No weak areas were recorded yet. Run a new setup workflow to generate a richer analytics view.
+              <div className="flex flex-col items-center justify-center h-[300px] text-center border-2 border-dashed border-[#2d2c41] rounded-xl bg-[#0a0a0f] p-8 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-5"></div>
+                <Target className="text-[#a5a0c4] mb-4 opacity-30 relative z-10" size={48} />
+                <h3 className="text-lg font-bold text-white mb-2 relative z-10">No Weakness Data Yet</h3>
+                <p className="text-sm text-[#5c5875] max-w-md mb-6 relative z-10">
+                  Complete at least one mock interview session to unlock your gap analysis. PrepAgent will identify topics you struggle with and track them here over time to guide your study plan.
+                </p>
+                <button 
+                  onClick={() => router.push('/setup')}
+                  className="px-6 py-2.5 bg-[#8b5cf6]/10 hover:bg-[#8b5cf6]/20 border border-[#8b5cf6]/30 text-[#8b5cf6] rounded-lg text-sm font-semibold transition-all relative z-10"
+                >
+                  Start a Mock Session
+                </button>
               </div>
             )}
           </div>
 
-          <div className="bg-[#12121a] border border-[#2d2c41] rounded-2xl p-6">
+          </section>
+
+          <section className="bg-[#12121a] border border-[#2d2c41] rounded-2xl p-6">
             <h2 className="text-xl font-bold text-white tracking-tight mb-2">Actionable insights</h2>
             <p className="text-sm text-[#a5a0c4] mb-6">Derived from your saved sessions, not fabricated from a single score.</p>
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <InsightCard
                 title="Consistency check"
                 tone="green"
@@ -214,8 +230,58 @@ export default function AnalyticsPage() {
                 body={`Your current active session is ${session.company} · ${session.role}. Use this analytics view to compare future runs against that baseline.`}
               />
             </div>
-          </div>
-        </section>
+          </section>
+
+          {/* Recent History Table */}
+          <section className="bg-[#12121a] border border-[#2d2c41] rounded-2xl p-6">
+            <h2 className="text-xl font-bold text-white tracking-tight mb-2">Recent Mock Interviews</h2>
+            <p className="text-sm text-[#a5a0c4] mb-6">A log of your most recent practice sessions and their outcomes.</p>
+            
+            {history.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-xs text-[#a5a0c4] uppercase bg-[#0a0a0f] border-b border-[#2d2c41]">
+                    <tr>
+                      <th className="px-6 py-4 font-semibold rounded-tl-lg">Date</th>
+                      <th className="px-6 py-4 font-semibold">Company & Role</th>
+                      <th className="px-6 py-4 font-semibold">Status</th>
+                      <th className="px-6 py-4 font-semibold rounded-tr-lg text-right">Score</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#2d2c41]">
+                    {history.slice(0, 10).map((s: any, idx: number) => {
+                      const score = s.final_score || s.readiness_score || 0;
+                      return (
+                        <tr key={s.id || idx} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="px-6 py-4 text-[#a5a0c4]">
+                            {s.created_at ? format(parseISO(s.created_at), "MMM d, yyyy") : "Unknown"}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="font-semibold text-white">{s.company}</div>
+                            <div className="text-xs text-[#5c5875]">{s.role}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${s.status === 'COMPLETED' ? 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/20' : 'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/20'}`}>
+                              {s.status === 'COMPLETED' ? 'Completed' : 'In Progress'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <span className={`font-mono font-bold ${score >= 75 ? 'text-[#10b981]' : score >= 50 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}`}>
+                              {Number(score).toFixed(0)}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-[#a5a0c4] text-sm rounded-xl border border-[#2d2c41] bg-[#0a0a0f] p-6 text-center">
+                No session history available yet.
+              </div>
+            )}
+          </section>
       </main>
     </div>
   );

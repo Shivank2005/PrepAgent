@@ -443,6 +443,48 @@ async def company_streak(company: str, db: AsyncSession = Depends(get_db), curre
     }
 
 
+from collections import Counter
+@router.get("/company/{company}/analytics")
+async def company_analytics(company: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Return historical score trends and aggregated weak topics for a company"""
+    result = await db.execute(
+        select(DBSession)
+        .where(DBSession.company == company, DBSession.user_id == current_user.id)
+        .order_by(DBSession.created_at.asc())
+    )
+    sessions = result.scalars().all()
+    
+    if not sessions:
+        raise HTTPException(status_code=404, detail="No sessions found for this company")
+    
+    # Build history array
+    history = []
+    for s in sessions:
+        score = float(s.final_score or s.readiness_score or 0)
+        history.append({
+            "date": s.created_at.strftime("%b %d") if s.created_at else "Unknown",
+            "score": round(score, 1)
+        })
+        
+    # Aggregate weak areas
+    weaknesses_counter = Counter()
+    for s in sessions:
+        if s.weak_areas and isinstance(s.weak_areas, list):
+            for wa in s.weak_areas:
+                if isinstance(wa, dict) and "topic" in wa:
+                    weaknesses_counter[wa["topic"]] += 1
+                elif isinstance(wa, str):
+                    weaknesses_counter[wa] += 1
+                    
+    top_weaknesses = [{"topic": topic, "count": count} for topic, count in weaknesses_counter.most_common(5)]
+    
+    return {
+        "company": company,
+        "history": history,
+        "top_weaknesses": top_weaknesses
+    }
+
+
 @router.get("/companies/focus-list")
 async def company_focus_list(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Return top companies by attempt count with their streaks and metrics"""

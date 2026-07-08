@@ -155,20 +155,20 @@ async def stream_chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
                 if not g_session:
                     raise ValueError("Session not found in generator database")
 
-                print(f"[DEBUG] is_first_message: {is_first_message}, step: {step}")
+
                 
                 # For the first setup call, run the full planning graph. Later chat
                 # calls are mentor conversations; mock answer evaluation happens via
                 # the dedicated /mock/evaluate endpoint.
                 if is_first_message:
-                    print(f"[DEBUG] Running graph (step: {step})")
+
                     if step == "mock_questions":
                         from app.agents.graph import mock_questions_node
                         final_state = await mock_questions_node(state)
                     else:
                         final_state = await agent_graph.ainvoke(state)
                 else:
-                    print("[DEBUG] Running mentor chat")
+
                     context = {
                         "company": g_session.company,
                         "role": g_session.role,
@@ -204,9 +204,7 @@ Keep answers focused, practical, and interview-oriented."""),
                         "step": "mentor_chat",
                     }
                 
-                print(f"[DEBUG] final_state step: {final_state.get('step')}")
-                print(f"[DEBUG] final_state weak_areas: {final_state.get('weak_areas')}")
-                print(f"[DEBUG] final_state mock_questions: {final_state.get('mock_questions')}")
+
 
                 # Update DB with generated artifacts
                 if is_first_message:

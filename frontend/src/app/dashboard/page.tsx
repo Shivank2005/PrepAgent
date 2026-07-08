@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { RefreshCw, Bell, AlertTriangle, Timer, TrendingUp, Target, Flame, CheckSquare, AlertCircle, Loader2, PlayCircle, ChevronRight, Clock, Target as TargetIcon } from "lucide-react";
+import { RefreshCw, Bell, AlertTriangle, Timer, TrendingUp, Target, Flame, CheckSquare, AlertCircle, Loader2, PlayCircle, ChevronRight, Clock, Target as TargetIcon, X } from "lucide-react";
 import Link from "next/link";
 import { api, updateSessionTasks, fetchAnalyticsSummary, fetchCurrentStreak, fetchCompanyFocusList } from "@/lib/api";
 import { getActiveSessionId, getAuthToken, setActiveSessionId } from "@/lib/store";
@@ -19,6 +19,23 @@ export default function DashboardPage() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [dismissedNotifs, setDismissedNotifs] = useState<number[]>([]);
   const [hoveredPoint, setHoveredPoint] = useState<any>(null);
+  
+  const [selectedCompanyForAnalytics, setSelectedCompanyForAnalytics] = useState<string | null>(null);
+  const [companyAnalyticsData, setCompanyAnalyticsData] = useState<any>(null);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+
+  const handleOpenDeepDive = async (companyName: string) => {
+    setSelectedCompanyForAnalytics(companyName);
+    setIsAnalyticsLoading(true);
+    try {
+      const res = await api.get(`/sessions/company/${companyName}/analytics`);
+      setCompanyAnalyticsData(res.data);
+    } catch (err) {
+      console.error("Failed to fetch analytics", err);
+    } finally {
+      setIsAnalyticsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!getAuthToken()) {
@@ -135,9 +152,18 @@ export default function DashboardPage() {
     const isDueToday = task.day === daysElapsed + 1;
     const isOverdue = (task.day || 0) < daysElapsed + 1 && !isCompleted;
     return isDueToday || isOverdue;
+  }).sort((a: any, b: any) => {
+    const isAOverdue = (a.day || 0) < daysElapsed + 1 && !completed_tasks?.[a.task];
+    const isBOverdue = (b.day || 0) < daysElapsed + 1 && !completed_tasks?.[b.task];
+    // Overdue tasks float to the top
+    if (isAOverdue && !isBOverdue) return -1;
+    if (!isAOverdue && isBOverdue) return 1;
+    return 0;
   });
   const todayCompletedCount = todayTasks.filter((t: any) => !!completed_tasks?.[t.task]).length;
   const todayCompletionPct = todayTasks.length ? Math.round((todayCompletedCount / todayTasks.length) * 100) : 100;
+
+  const overdueTasks = plan.filter((task: any) => (task.day || 0) < daysElapsed + 1 && !completed_tasks?.[task.task]);
 
   // Adaptive Frontend Mappings for Data not provided by backend
   const phaseProgress = (study_plan?.phases || []).map((p: any) => {
@@ -147,7 +173,7 @@ export default function DashboardPage() {
       const taskName = typeof t === 'string' ? t : (t as any).name || 'Unknown task';
       return completed_tasks?.[taskName];
     }).length;
-    return { label: p.name.substring(0, 15), val, max: max || 1, originalName: p.name };
+    return { label: p.name, val, max: max || 1, originalName: p.name };
   });
   const fallbackBars = [
     { label: 'DSA', val: 8, max: 10 },
@@ -378,6 +404,23 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Overdue Banner */}
+        {overdueTasks.length > 0 && (
+          <div className="bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-xl p-4 flex items-center justify-between text-[#ef4444] shadow-sm">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={20} className="flex-shrink-0 text-[#ef4444]" />
+              <div className="text-sm font-medium text-white">
+                You have <strong className="font-bold text-[#f87171]">{overdueTasks.length} overdue task{overdueTasks.length > 1 ? 's' : ''}</strong> that need your immediate attention!
+              </div>
+            </div>
+            <button onClick={() => {
+              document.getElementById('todays-tasks-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }} className="px-4 py-1.5 bg-[#ef4444]/20 hover:bg-[#ef4444]/30 text-[#f87171] rounded-lg text-xs font-bold transition-colors">
+              View Tasks
+            </button>
+          </div>
+        )}
+
         {/* Metric Cards Grid - 3x2 Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
@@ -575,7 +618,7 @@ export default function DashboardPage() {
           <div className="space-y-5 max-w-3xl mx-auto">
             {activePhaseProgress.map((bar: any, i: number) => (
               <div key={i} className="flex items-center gap-4">
-                <div className="w-32 text-sm text-[#a5a0c4]">{bar.label}</div>
+                <div className="w-56 text-sm text-[#a5a0c4] truncate" title={bar.label}>{bar.label}</div>
                 <div className="flex-1 h-3 bg-[#2d2c41] rounded-full overflow-hidden">
                   <div className="h-full bg-[#8b5cf6] rounded-full" style={{ width: `${(bar.val / bar.max) * 100}%` }} />
                 </div>
@@ -713,7 +756,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Today's Tasks */}
-        <div className="bg-[#12121a] border border-[#2d2c41] rounded-xl flex flex-col mb-12">
+        <div id="todays-tasks-section" className="bg-[#12121a] border border-[#2d2c41] rounded-xl flex flex-col mb-12">
           
           {/* Focus Companies Section */}
           {focusCompanies.length > 0 && (
@@ -753,8 +796,10 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       
-                      <button className="w-full mt-3 bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 text-[#8b5cf6] text-[11px] font-bold py-2 rounded transition-all group-hover:bg-[#8b5cf6]/20 group-hover:border-[#8b5cf6]/50">
-                        Practice Again
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleOpenDeepDive(company.company); }}
+                        className="w-full mt-3 bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 text-[#8b5cf6] text-[11px] font-bold py-2 rounded transition-all group-hover:bg-[#8b5cf6]/20 group-hover:border-[#8b5cf6]/50">
+                        Deep Dive
                       </button>
                     </div>
                   ))}
@@ -838,6 +883,101 @@ export default function DashboardPage() {
         </div>
 
       </main>
+
+      {/* Deep Dive Analytics Modal */}
+      {selectedCompanyForAnalytics && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#12121a] border border-[#2d2c41] rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-[#2d2c41] flex items-center justify-between bg-[#181724]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#8b5cf6]/20 flex items-center justify-center border border-[#8b5cf6]/30">
+                  <TrendingUp className="text-[#c084fc]" size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white leading-tight">{selectedCompanyForAnalytics} Deep Dive</h2>
+                  <p className="text-xs text-[#a5a0c4]">Historical performance & weakness analysis</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedCompanyForAnalytics(null)}
+                className="p-2 bg-[#2d2c41]/50 hover:bg-[#2d2c41] text-[#a5a0c4] hover:text-white rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+              {isAnalyticsLoading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <Loader2 className="animate-spin text-[#8b5cf6] mb-4" size={40} />
+                  <p className="text-[#8a8a9e] font-medium">Aggregating historical data...</p>
+                </div>
+              ) : companyAnalyticsData ? (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  
+                  {/* Score History Graph */}
+                  <div className="lg:col-span-2 bg-[#0a0a0f] border border-[#2d2c41]/50 rounded-xl p-5 shadow-inner">
+                    <h3 className="text-sm font-bold text-white tracking-widest uppercase mb-6 flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-[#10b981]" />
+                      Score Trajectory
+                    </h3>
+                    <div className="h-64 w-full">
+                      {companyAnalyticsData.history && companyAnalyticsData.history.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={companyAnalyticsData.history} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <XAxis dataKey="date" stroke="#5c5875" fontSize={11} tickMargin={10} axisLine={false} tickLine={false} />
+                            <YAxis stroke="#5c5875" fontSize={11} axisLine={false} tickLine={false} domain={[0, 100]} />
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#181724', border: '1px solid #2d2c41', borderRadius: '8px', color: '#fff' }}
+                              itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
+                            />
+                            <Line type="monotone" dataKey="score" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#12121a' }} activeDot={{ r: 6, fill: '#fff', stroke: '#10b981' }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-[#5c5875] text-sm">Not enough data to display graph.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Top Weaknesses List */}
+                  <div className="bg-[#0a0a0f] border border-[#2d2c41]/50 rounded-xl p-5 shadow-inner flex flex-col">
+                    <h3 className="text-sm font-bold text-white tracking-widest uppercase mb-4 flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-[#ef4444]" />
+                      Struggled Topics
+                    </h3>
+                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
+                      {companyAnalyticsData.top_weaknesses && companyAnalyticsData.top_weaknesses.length > 0 ? (
+                        companyAnalyticsData.top_weaknesses.map((weakness: any, i: number) => (
+                          <div key={i} className="bg-[#12121a] border border-[#ef4444]/20 p-3 rounded-lg flex items-center justify-between group">
+                            <div className="flex items-center gap-3">
+                              <div className="text-xs font-black text-[#5c5875] w-4">{i + 1}.</div>
+                              <div className="text-sm font-medium text-[#fca5a5] group-hover:text-white transition-colors">{weakness.topic}</div>
+                            </div>
+                            <div className="bg-[#ef4444]/10 text-[#ef4444] text-[10px] font-bold px-2 py-1 rounded-md border border-[#ef4444]/20">
+                              {weakness.count}x
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-[#5c5875] text-sm pb-8">No specific weaknesses identified yet.</div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-20 text-[#ef4444]">
+                  Failed to load analytics data.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -226,7 +226,12 @@ table.plan-table tr:nth-child(even) td { background: #f8fafc; }
 }
 .qa-sublabel:first-child { margin-top: 0; }
 .qa-question-text { font-size: 11px; font-style: italic; margin: 0; color: #334155; }
-.qa-answer-text { font-size: 10.8px; color: #1e293b; margin: 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; }
+.qa-answer-text-container { margin: 0 0 12px 0; }
+.text-line {
+  font-size: 10.8px; color: #1e293b; margin: 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;
+  page-break-inside: avoid; break-inside: avoid;
+  min-height: 12px;
+}
 .qa-code-container {
   margin: 0 0 12px 0;
 }
@@ -329,7 +334,7 @@ Return this exact JSON structure:
 }
 
 RULES:
-- Score each question 0-10. If no real answer was given, score 0.
+- Score each question 0-10. Be EXTREMELY STRICT. If there are ANY weaknesses, missing edge cases, or optimizations, the score MUST NOT be 10. Deduct 1-3 points for any flaws. If no real answer was given, score 0.
 - overall_score is 0-100. accuracy_pct is percentage of questions scored >= 7.
 - dimension scores are 0-100 based on average of question scores in that category * 10.
 - Growth opportunities: 3-5 items, HIGH priority first. Be specific to what happened.
@@ -578,14 +583,18 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
             line_html = "".join(f'<div class="code-line">{line if line else " "}</div>' for line in lines)
             answer_html = f'<div class="qa-code-container">{line_html}</div>'
         else:
-            answer_html = f'<p class="qa-answer-text">{_esc(answer)}</p>'
+            lines = _esc(answer).split("\n")
+            line_html = "".join(f'<div class="text-line">{line if line else " "}</div>' for line in lines)
+            answer_html = f'<div class="qa-answer-text-container">{line_html}</div>'
 
         # Strengths
         strengths_lis = "".join(f"<li>{_esc(s)}</li>" for s in qa.get("strengths", []))
         weaknesses_lis = "".join(f"<li>{_esc(w)}</li>" for w in qa.get("weaknesses", []))
         rec_lis = "".join(f"<li>{_esc(r)}</li>" for r in qa.get("recommendations", []))
 
+        page_break_html = '<div class="page-break"></div>' if idx > 0 else ""
         qa_cards += f"""
+    {page_break_html}
     <div class="qa-card">
       <div class="qa-head">
         <div class="qa-title">Q{idx+1} &middot; {category} &middot; {subcategory}</div>
