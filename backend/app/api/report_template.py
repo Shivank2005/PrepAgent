@@ -227,13 +227,20 @@ table.plan-table tr:nth-child(even) td { background: #f8fafc; }
 .qa-sublabel:first-child { margin-top: 0; }
 .qa-question-text { font-size: 11px; font-style: italic; margin: 0; color: #334155; }
 .qa-answer-text { font-size: 10.8px; color: #1e293b; margin: 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; }
-pre.qa-code {
-  background: #f8fafc; color: #334155; border-radius: 6px; padding: 10px 12px;
-  border: 1px solid #cbd5e1;
-  font-family: 'Courier New', monospace; font-size: 8.3px; line-height: 1.45;
-  white-space: pre-wrap; word-wrap: break-word; margin: 0;
-  page-break-inside: avoid; break-inside: avoid;
+.qa-code-container {
+  margin: 0 0 12px 0;
 }
+.code-line {
+  font-family: 'Courier New', monospace; font-size: 8.3px; line-height: 1.45;
+  color: #334155; white-space: pre-wrap; word-wrap: break-word;
+  background: #f8fafc;
+  padding: 0 12px;
+  border-left: 2px solid #cbd5e1;
+  page-break-inside: avoid; break-inside: avoid;
+  min-height: 12px;
+}
+.code-line:first-child { padding-top: 10px; }
+.code-line:last-child { padding-bottom: 10px; }
 .sw-grid { display: flex; gap: 14px; margin-top: 4px; }
 .sw-col { flex: 1; }
 .sw-col.strengths .qa-sublabel { color: #059669; }
@@ -567,7 +574,9 @@ def build_report_html(session_data: dict, analysis: dict, messages: list) -> str
 
         # Answer block
         if answer_type == "code":
-            answer_html = f'<pre class="qa-code">{_esc(answer)}</pre>'
+            lines = _esc(answer).split("\n")
+            line_html = "".join(f'<div class="code-line">{line if line else " "}</div>' for line in lines)
+            answer_html = f'<div class="qa-code-container">{line_html}</div>'
         else:
             answer_html = f'<p class="qa-answer-text">{_esc(answer)}</p>'
 

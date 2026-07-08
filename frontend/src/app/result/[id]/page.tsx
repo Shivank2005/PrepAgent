@@ -167,46 +167,6 @@ export default function ResultPage() {
         </div>
 
 
-        <div className="w-full mb-12">
-          <h2 className="text-2xl font-bold text-white mb-6 text-left">Score by dimension</h2>
-          <div className="w-full bg-[#101016] border border-[#232338] rounded-xl overflow-hidden shadow-lg">
-            <table className="w-full text-left">
-              <thead className="bg-[#14141d] border-b border-[#232338]">
-                <tr>
-                  <th className="py-4 px-6 text-[#b4b4c7] font-semibold text-sm">Dimension</th>
-                  <th className="py-4 px-6 text-[#b4b4c7] font-semibold text-sm">Score</th>
-                  <th className="py-4 px-6 text-[#b4b4c7] font-semibold text-sm w-1/2"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#232338]">
-                {[
-                  { label: "Technical (DSA)", score: session?.dimension_scores?.technical ?? Math.round(session?.final_score ?? session?.readiness_score ?? 10) },
-                  { label: "Behavioral", score: session?.dimension_scores?.behavioral ?? Math.round(session?.final_score ?? session?.readiness_score ?? 10) },
-                  { label: "System Design", score: session?.dimension_scores?.system_design ?? Math.round(session?.final_score ?? session?.readiness_score ?? 10) },
-                ].map((dim, i) => {
-                  let color = "#ef4444"; // red
-                  if (dim.score >= 80) color = "#22c55e"; // green
-                  else if (dim.score >= 50) color = "#eab308"; // yellow
-                  
-                  return (
-                    <tr key={i} className="hover:bg-[#151520] transition-colors">
-                      <td className="py-4 px-6 text-white font-medium">{dim.label}</td>
-                      <td className="py-4 px-6 text-white font-medium">{dim.score} / 100</td>
-                      <td className="py-4 px-6">
-                        <div className="h-2.5 w-full bg-[#232338] rounded-full overflow-hidden">
-                          <div 
-                            className="h-full rounded-full transition-all duration-1000"
-                            style={{ width: `${dim.score}%`, backgroundColor: color }}
-                          ></div>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <button 
