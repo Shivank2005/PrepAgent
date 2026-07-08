@@ -171,31 +171,37 @@ export default function ResultPage() {
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <button 
             onClick={handleDashboard}
-            className="bg-[#2d2c41] hover:bg-[#3f3e58] text-white font-bold px-8 py-4 rounded-xl transition-all shadow-sm w-full sm:w-auto text-center"
+            className="bg-[#2d2c41] hover:bg-[#3f3e58] text-white font-bold px-8 py-4 rounded-xl transition-all shadow-sm w-full sm:w-auto text-center h-[72px]"
           >
             Go to Dashboard
           </button>
           <button 
             onClick={handleNewSession}
-            className="bg-accent hover:bg-accent/90 text-[#060609] font-bold px-8 py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] flex items-center justify-center gap-2 w-full sm:w-auto"
+            className="bg-accent hover:bg-accent/90 text-[#060609] font-bold px-8 py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] flex items-center justify-center gap-2 w-full sm:w-auto h-[72px]"
           >
             Start New Mock Session <ArrowRight size={18} />
           </button>
           <button
             onClick={handleExport}
             disabled={isExporting}
-            className="bg-[#12121a] hover:bg-[#1b1b27] border border-[#2d2c41] text-white font-bold px-8 py-4 rounded-xl transition-all flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-60"
+            className="bg-[#12121a] hover:bg-[#1b1b27] border border-[#2d2c41] text-white font-bold px-6 py-3 rounded-xl transition-all flex items-center justify-center gap-4 w-full sm:w-auto disabled:opacity-60 min-w-[160px] h-[72px]"
           >
-            <Download size={18} />
-            {isExporting ? "Exporting..." : "Download Summary"}
+            <Download size={16} className="text-[#a5a0c4]" />
+            <div className="flex flex-col text-left leading-tight">
+              <span>{isExporting ? "Exporting..." : "Download"}</span>
+              {!isExporting && <span>Summary</span>}
+            </div>
           </button>
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="bg-[#2a1417] hover:bg-[#3a171c] border border-[#5a1f28] text-[#fca5a5] font-bold px-8 py-4 rounded-xl transition-all flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-60"
+            className="bg-[#2a1417] hover:bg-[#3a171c] border border-[#5a1f28] text-[#fca5a5] font-bold px-6 py-3 rounded-xl transition-all flex items-center justify-center gap-4 w-full sm:w-auto disabled:opacity-60 min-w-[160px] h-[72px]"
           >
-            <Trash2 size={18} />
-            {isDeleting ? "Deleting..." : "Delete Session"}
+            <Trash2 size={16} className="text-[#fca5a5]" />
+            <div className="flex flex-col text-left leading-tight">
+              <span>{isDeleting ? "Deleting..." : "Delete"}</span>
+              {!isDeleting && <span>Session</span>}
+            </div>
           </button>
         </div>
       </div>

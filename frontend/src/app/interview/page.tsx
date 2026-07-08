@@ -258,31 +258,33 @@ export default function MockInterview() {
   return (
     <div className="flex flex-col h-full w-full bg-bg0">
       {/* Top Header */}
-      <header className="flex items-center justify-between px-8 py-4 border-b border-white/[0.05] bg-[#0a0a0f] sticky top-0 z-20">
-        <div className="flex items-center gap-4">
-          <div className="bg-[#181724]/80 border border-accent/20 px-3 py-1.5 rounded-full text-xs font-medium text-[#a5a0c4] flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-accent" />
-            {session.company}
+      <header className="flex flex-col md:flex-row items-start md:items-center justify-between px-4 sm:px-8 py-4 border-b border-white/[0.05] bg-[#0a0a0f] sticky top-0 z-20 gap-4 md:gap-0">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="bg-[#181724]/80 border border-accent/20 px-3 py-1.5 rounded-full text-xs font-medium text-[#a5a0c4] flex items-center gap-2 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-accent shrink-0" />
+            <span className="truncate max-w-[150px] sm:max-w-none">{session.company}</span>
           </div>
           <div className="text-white text-sm font-medium">{session.company} Technical Round</div>
         </div>
         
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-1.5 text-xs">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6 w-full md:w-auto justify-between md:justify-end">
+          <div className="flex items-center gap-1 sm:gap-1.5 text-xs">
             {Array.from({ length: totalQuestions }).map((_, i) => (
-              <span key={i} className={`w-6 h-1 rounded-full ${i <= questionIndex ? 'bg-accent shadow-[0_0_8px_rgba(6,182,212,0.5)]' : 'bg-[#2d2c41]'}`} />
+              <span key={i} className={`w-3 sm:w-6 h-1 rounded-full ${i <= questionIndex ? 'bg-accent shadow-[0_0_8px_rgba(6,182,212,0.5)]' : 'bg-[#2d2c41]'}`} />
             ))}
-            <span className="text-[#a5a0c4] ml-2 font-mono">{questionIndex + 1}/{totalQuestions}</span>
+            <span className="text-[#a5a0c4] ml-1 sm:ml-2 font-mono shrink-0">{questionIndex + 1}/{totalQuestions}</span>
           </div>
           
-          <div className="flex items-center gap-2 text-[#a5a0c4] font-mono text-sm w-16">
-            <Clock size={16} />
-            {formatTime(elapsedTime)}
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-2 text-[#a5a0c4] font-mono text-sm shrink-0">
+              <Clock size={16} />
+              {formatTime(elapsedTime)}
+            </div>
+            
+            <button onClick={handleEndSession} className="text-sm text-[#a5a0c4] hover:text-[#ef4444] transition-colors font-medium shrink-0">
+              End Session
+            </button>
           </div>
-          
-          <button onClick={handleEndSession} className="text-sm text-[#a5a0c4] hover:text-[#ef4444] transition-colors font-medium">
-            End Session
-          </button>
         </div>
       </header>
 

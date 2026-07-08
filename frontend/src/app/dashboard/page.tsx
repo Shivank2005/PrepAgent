@@ -308,34 +308,34 @@ export default function DashboardPage() {
     <div className="flex flex-col h-full overflow-y-auto bg-[#0a0a0f] custom-scrollbar">
       
       {/* Top Header */}
-      <header className="flex items-center justify-between px-8 py-5 border-b border-[#2d2c41] bg-[#0a0a0f] sticky top-0 z-50">
-        <div>
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Progress Dashboard</h1>
-            <div className="bg-[#8b5cf6]/10 border border-[#8b5cf6]/20 px-3 py-1.5 rounded-full text-xs font-medium text-[#c084fc] flex items-center gap-2">
-              <TargetIcon size={14} />
-              {company} · {role}
+      <header className="flex flex-col md:flex-row items-start md:items-center justify-between px-4 sm:px-8 py-5 border-b border-[#2d2c41] bg-[#0a0a0f] sticky top-0 z-50 gap-4 md:gap-0">
+        <div className="w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Progress Dashboard</h1>
+            <div className="bg-[#8b5cf6]/10 border border-[#8b5cf6]/20 px-3 py-1.5 rounded-full text-xs font-medium text-[#c084fc] flex items-center gap-2 w-fit">
+              <TargetIcon size={14} className="shrink-0" />
+              <span className="truncate max-w-[200px] sm:max-w-none">{company} · {role}</span>
             </div>
           </div>
-          <div className="text-sm text-[#5c5875] mt-1">Last updated · just now</div>
+          <div className="text-sm text-[#5c5875] mt-2 sm:mt-1">Last updated · just now</div>
         </div>
         
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-6 w-full md:w-auto mt-2 md:mt-0">
           <button onClick={() => fetchSession(session.session_id)} className="flex items-center gap-2 text-sm text-[#a5a0c4] hover:text-white transition-colors">
             <RefreshCw size={16} />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </button>
-          <Link href="/setup" className="bg-[#181724] hover:bg-[#2d2c41] border border-[#2d2c41] text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all flex items-center gap-2">
+          <Link href="/setup" className="bg-[#181724] hover:bg-[#2d2c41] border border-[#2d2c41] text-white font-medium px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-all flex items-center gap-2">
             New Setup
           </Link>
           {session.status === "COMPLETED" ? (
-            <button disabled className="bg-[#2d2c41] text-[#a5a0c4] font-medium px-5 py-2.5 rounded-lg text-sm flex items-center gap-2 cursor-not-allowed">
-              <CheckSquare size={16} />
+            <button disabled className="bg-[#2d2c41] text-[#a5a0c4] font-medium px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm flex items-center gap-2 cursor-not-allowed">
+              <CheckSquare size={16} className="shrink-0" />
               Session Completed
             </button>
           ) : (
-            <Link href="/interview" className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(139,92,246,0.3)]">
-               <div className="w-2 h-2 rounded-full bg-white/90 animate-pulse" />
+            <Link href="/interview" className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-medium px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(139,92,246,0.3)]">
+               <div className="w-2 h-2 rounded-full bg-white/90 animate-pulse shrink-0" />
                {(session.time_taken === 0 || !session.time_taken) && (session.current_question_index === 0 || !session.current_question_index) ? "Start Mock Interview" : "Resume Mock"}
             </Link>
           )}
