@@ -196,22 +196,25 @@ table.plan-table td {
 table.plan-table tr:nth-child(even) td { background: #f8fafc; }
 
 .qa-card {
-  box-shadow: 0 0 0 1px #cbd5e1; 
-  border-radius: 10px; 
-  margin-bottom: 0px;
-  border-top: 40px solid transparent;
-  background-clip: padding-box;
+  margin-top: 30px;
+  margin-bottom: 30px;
+  border-bottom: 1px solid #cbd5e1;
+  padding-bottom: 20px;
   background-color: #ffffff;
-  overflow: hidden; width: 100%;
+  width: 100%;
+  page-break-inside: auto !important;
+  break-inside: auto !important;
 }
 .qa-head {
   background: #f8fafc; padding: 10px 16px; display: flex;
-  justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0;
+  justify-content: space-between; align-items: center; 
+  border-bottom: 1px solid #e2e8f0;
+  border-left: 4px solid #7c3aed;
 }
 .qa-title { font-size: 12px; font-weight: 700; color: #0f172a; }
 .qa-score {
-  font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 12px;
-  background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; line-height: 1; color: #0f172a;
+  font-size: 12px; font-weight: 800; padding: 6px 14px; border-radius: 20px;
+  background: #e2e8f0; display: inline-block; text-align: center; color: #0f172a; line-height: normal;
 }
 .score-good { color: #059669; }
 .score-mid  { color: #d97706; }
@@ -229,6 +232,7 @@ pre.qa-code {
   border: 1px solid #cbd5e1;
   font-family: 'Courier New', monospace; font-size: 8.3px; line-height: 1.45;
   white-space: pre-wrap; word-wrap: break-word; margin: 0;
+  page-break-inside: avoid; break-inside: avoid;
 }
 .sw-grid { display: flex; gap: 14px; margin-top: 4px; }
 .sw-col { flex: 1; }

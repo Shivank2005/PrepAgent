@@ -77,7 +77,7 @@ export default function ResultPage() {
         // Use css mode so it respects our .page-break class and page-break-inside rules
         pagebreak:    { 
           mode: 'css', 
-          avoid: ['.qa-card', '.growth-card', '.metric-row', '.callout', '.transcript-turn', '.plan-block'] 
+          avoid: ['.qa-code', '.growth-card', '.metric-row', '.callout', '.transcript-turn', '.plan-block'] 
         }
       };
       
