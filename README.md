@@ -47,7 +47,7 @@ graph TD
     C <-->|Agent 1| D[Resume Parser]
     C <-->|Agent 2| E[Interview Simulator]
     C <-->|Agent 3| F[Roadmap Generator]
-    E <--> G[(ChromaDB RAG)]
+    E <--> G[(Pinecone RAG)]
     E <--> H((Groq LLaMA-3))
 ```
 
